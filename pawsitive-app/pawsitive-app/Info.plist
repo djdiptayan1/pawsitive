@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Pawsitive needs your location to dispatch nearby rescuers exactly to the animal in distress.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Pawsitive needs camera access to capture photos of animals in distress for SOS reports.</string>
+	<key>UIAppFonts</key>
+	<array>
+		<string></string>
+		<string>CuteDino.otf</string>
+	</array>
+</dict>
+</plist>

@@ -1,0 +1,12 @@
+/ui inspo/
+
+/brand_guidelines.md
+/idea.md
+/Supabase_commands.md
+/ios_notification_workaround.md
+/backend/.env
+/backend/node_modules/
+/pawsitive-app/build/
+/pawsitive-app/pawsitive-app/services/Supabase.swift
+
+.DS_Store
