@@ -163,11 +163,11 @@ struct CitizenProfileView: View {
     private var badgesSection: some View {
         let badges: [(emoji: String, title: String, subtitle: String, isEarned: Bool)] = [
             ("📱", "First Report", "File 1 report", viewModel.reportsFiled >= 1),
-            ("🐾", "Animal Friend", "Help rescue 1 animal", viewModel.animalsHelped >= 1),
-            ("📋", "Active Reporter", "File 5 reports", viewModel.reportsFiled >= 5),
+            ("🐾", "Animal Friend", "Help rescue 2 animal", viewModel.animalsHelped >= 2),
+            ("📋", "Active Reporter", "File 15 reports", viewModel.reportsFiled >= 15),
             ("🦸", "Community Hero", "Help rescue 5 animals", viewModel.animalsHelped >= 5),
             ("🌟", "Pawsitive Star", "File 10 reports", viewModel.reportsFiled >= 10),
-            ("🏆", "Guardian Angel", "Help rescue 10 animals", viewModel.animalsHelped >= 10),
+            ("🏆", "Guardian Angel", "Help rescue 50 animals", viewModel.animalsHelped >= 50),
         ]
 
         VStack(alignment: .leading, spacing: 16) {

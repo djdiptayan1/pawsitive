@@ -11,7 +11,8 @@ import SwiftUI
 struct RescuerMapView: View {
     @StateObject private var viewModel = RescuerMapViewModel()
 
-    @State private var position: MapCameraPosition = .userLocation(fallback: .region(MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: 13.0827, longitude: 80.2707), span: MKCoordinateSpan(latitudeDelta: 0.02, longitudeDelta: 0.02))))
+    @State private var position: MapCameraPosition = .userLocation(fallback: .automatic)
+    @State private var hasCenteredOnUser = false
     @State private var selectedIncident: RecentActivityModel? = nil
     @State private var selectedVetPlace: NearbyVetPlace?
     @State private var showAcceptAlert = false
@@ -144,6 +145,16 @@ struct RescuerMapView: View {
         .onAppear {
             viewModel.startMonitoring()
         }
+//        .onChange(of: viewModel.userLocation) { newLocation in
+//            guard let newLocation, !hasCenteredOnUser else { return }
+//            position = .region(
+//                MKCoordinateRegion(
+//                    center: newLocation,
+//                    span: MKCoordinateSpan(latitudeDelta: 0.02, longitudeDelta: 0.02)
+//                )
+//            )
+//            hasCenteredOnUser = true
+//        }
         .onDisappear {
             viewModel.stopMonitoring()
         }
