@@ -101,7 +101,9 @@ struct RescuerProfileView: View {
                             HStack(spacing: 12) {
                                 ForEach(viewModel.impactStats) { stat in
                                     NavigationLink(
-                                        destination: IncidentHistoryView(type: stat.title)
+                                        destination: stat.title == "Earnings"
+                                            ? AnyView(CreditHistoryView())
+                                            : AnyView(IncidentHistoryView(type: stat.title))
                                     ) {
                                         VStack(spacing: 10) {
                                             Image(systemName: stat.icon)
@@ -145,26 +147,6 @@ struct RescuerProfileView: View {
 
                         // MARK: - Badges
                         badgesSection
-
-                        // MARK: - Recent Activity
-                        if !viewModel.recentActivities.isEmpty {
-                            VStack(alignment: .leading, spacing: 16) {
-                                HStack {
-                                    Text("Recent Activity")
-                                        .font(AppConfig.Fonts.headline)
-                                        .foregroundColor(AppConfig.Colors.textPrimary)
-                                    Spacer()
-                                }
-                                .padding(.horizontal, AppConfig.UI.screenPadding)
-
-                                VStack(spacing: 16) {
-                                    ForEach(viewModel.recentActivities) { activity in
-                                        ActivityCardView(activity: activity)
-                                            .padding(.horizontal, AppConfig.UI.screenPadding)
-                                    }
-                                }
-                            }
-                        }
 
                         Spacer(minLength: 24)
 
@@ -284,7 +266,18 @@ struct RescuerProfileView: View {
     // MARK: - Badges Section
     @ViewBuilder
     private var badgesSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        let rescueCount = Int(
+            viewModel.impactStats.first(where: { $0.title == "Rescues" })?.value ?? "0") ?? 0
+        let badges: [(emoji: String, title: String, subtitle: String, isEarned: Bool)] = [
+            ("🐾", "First Rescue", "Complete 1 rescue", rescueCount >= 1),
+            ("⚡", "Speed Hero", "Earn 50 credits", viewModel.totalCredits >= 50),
+            ("🏅", "Top Responder", "Earn 100 credits", viewModel.totalCredits >= 100),
+            ("💪", "10 Rescues", "Complete 10 rescues", rescueCount >= 10),
+            ("🌟", "Elite Rescuer", "Earn 500 credits", viewModel.totalCredits >= 500),
+            ("🏆", "Pawsitive Hero", "Earn 1000 credits", viewModel.totalCredits >= 1000),
+        ]
+
+        return VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Text("Badges")
                     .font(AppConfig.Fonts.headline)
@@ -293,59 +286,77 @@ struct RescuerProfileView: View {
             }
             .padding(.horizontal, AppConfig.UI.screenPadding)
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
+            let columns = [
+                GridItem(.flexible(), spacing: 12),
+                GridItem(.flexible(), spacing: 12),
+                GridItem(.flexible(), spacing: 12),
+            ]
+
+            LazyVGrid(columns: columns, spacing: 16) {
+                ForEach(Array(badges.enumerated()), id: \.offset) { _, badge in
                     badgeItem(
-                        emoji: "🐾", title: "First Rescue",
-                        isEarned: (Int(
-                            viewModel.impactStats.first(where: { $0.title == "Rescues" })?.value
-                                ?? "0") ?? 0) >= 1)
-                    badgeItem(
-                        emoji: "⚡", title: "Speed Hero",
-                        isEarned: viewModel.totalCredits >= 50)
-                    badgeItem(
-                        emoji: "🏅", title: "Top Responder",
-                        isEarned: viewModel.totalCredits >= 100)
-                    badgeItem(
-                        emoji: "💪", title: "10 Rescues",
-                        isEarned: (Int(
-                            viewModel.impactStats.first(where: { $0.title == "Rescues" })?.value
-                                ?? "0") ?? 0) >= 10)
-                    badgeItem(
-                        emoji: "🏆", title: "Pawsitive Hero",
-                        isEarned: viewModel.totalCredits >= 1000)
+                        emoji: badge.emoji,
+                        title: badge.title,
+                        subtitle: badge.subtitle,
+                        isEarned: badge.isEarned
+                    )
                 }
-                .padding(.horizontal, AppConfig.UI.screenPadding)
             }
+            .padding(.horizontal, AppConfig.UI.screenPadding)
         }
     }
 
     @ViewBuilder
-    private func badgeItem(emoji: String, title: String, isEarned: Bool) -> some View {
+    private func badgeItem(emoji: String, title: String, subtitle: String, isEarned: Bool)
+        -> some View
+    {
         VStack(spacing: 8) {
             ZStack {
                 Circle()
                     .fill(
                         isEarned
                             ? AppConfig.Colors.accent.opacity(0.15)
-                            : Color.gray.opacity(0.1)
+                            : Color.gray.opacity(0.08)
                     )
-                    .frame(width: 60, height: 60)
+                    .frame(width: 56, height: 56)
 
                 Text(emoji)
-                    .font(.system(size: 28))
+                    .font(.system(size: 26))
                     .opacity(isEarned ? 1.0 : 0.3)
+                    .grayscale(isEarned ? 0.0 : 1.0)
             }
 
-            Text(title)
-                .font(.system(size: 11, weight: .medium, design: .rounded))
-                .foregroundColor(
-                    isEarned ? AppConfig.Colors.textPrimary : AppConfig.Colors.textSecondary
-                )
-                .multilineTextAlignment(.center)
-                .lineLimit(2)
+            VStack(spacing: 2) {
+                Text(title)
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .foregroundColor(
+                        isEarned ? AppConfig.Colors.textPrimary : AppConfig.Colors.textSecondary
+                    )
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+
+                Text(subtitle)
+                    .font(.system(size: 10, weight: .regular, design: .rounded))
+                    .foregroundColor(AppConfig.Colors.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+            }
         }
-        .frame(width: 80)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 14)
+        .padding(.horizontal, 4)
+        .background(AppConfig.Colors.card)
+        .cornerRadius(AppConfig.UI.cornerRadius)
+        .shadow(
+            color: Color.black.opacity(isEarned ? 0.06 : 0.02),
+            radius: AppConfig.UI.cardShadowRadius, x: 0,
+            y: AppConfig.UI.cardShadowOffsetY)
+        .overlay(
+            RoundedRectangle(cornerRadius: AppConfig.UI.cornerRadius)
+                .stroke(
+                    isEarned ? AppConfig.Colors.accent.opacity(0.3) : Color.clear,
+                    lineWidth: 1.5)
+        )
     }
 
     // MARK: - Avatar View

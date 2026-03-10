@@ -21,7 +21,7 @@ class RescuerProfileViewModel: BaseProfileViewModel {
         self.impactStats = [
             ImpactStat(title: "Rescues", value: "-", icon: "cross.case.fill"),
             ImpactStat(title: "Active Jobs", value: "-", icon: "bolt.heart.fill"),
-            ImpactStat(title: "Rating", value: "-", icon: "star.fill"),
+            ImpactStat(title: "Earnings", value: "-", icon: "star.circle.fill"),
         ]
 
         loadProfile()
@@ -64,7 +64,9 @@ class RescuerProfileViewModel: BaseProfileViewModel {
                         title: "Rescues", value: "\(rescuesCompleted)", icon: "cross.case.fill"),
                     ImpactStat(
                         title: "Active Jobs", value: "\(activeRescues)", icon: "bolt.heart.fill"),
-                    ImpactStat(title: "Rating", value: "4.9", icon: "star.fill"),
+                    ImpactStat(
+                        title: "Earnings", value: "\(result.user.totalCredits ?? 0)",
+                        icon: "star.circle.fill"),
                 ]
 
                 // Pawsitive Credits

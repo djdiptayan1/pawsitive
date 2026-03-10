@@ -115,24 +115,6 @@ struct CitizenProfileView: View {
                         }
                         .padding(.horizontal, AppConfig.UI.screenPadding)
 
-                        // MARK: - Recent Activity
-                        VStack(alignment: .leading, spacing: 16) {
-                            HStack {
-                                Text("Recent Activity")
-                                    .font(AppConfig.Fonts.headline)
-                                    .foregroundColor(AppConfig.Colors.textPrimary)
-                                Spacer()
-                            }
-                            .padding(.horizontal, AppConfig.UI.screenPadding)
-
-                            VStack(spacing: 16) {
-                                ForEach(viewModel.recentActivities) { activity in
-                                    ActivityCardView(activity: activity)
-                                        .padding(.horizontal, AppConfig.UI.screenPadding)
-                                }
-                            }
-                        }
-
                         Spacer(minLength: 24)
 
                         // MARK: - Sign Out
