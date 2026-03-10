@@ -392,7 +392,8 @@ export async function completeIncidentAssignment(incidentId, rescuerId, rescuePh
             severity = incident.severity || 'Minor';
             const created = new Date(incident.created_at);
             const now = new Date();
-            responseMinutes = Math.max(1, Math.round((now - created) / 60000));
+            const MS_PER_MINUTE = 60000;
+            responseMinutes = Math.max(1, Math.round((now - created) / MS_PER_MINUTE));
         }
     } catch (err) {
         console.error('⚠️ [Credits] Could not fetch incident for credit calc:', err.message);

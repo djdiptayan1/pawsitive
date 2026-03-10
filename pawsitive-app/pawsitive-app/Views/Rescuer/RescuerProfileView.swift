@@ -306,7 +306,9 @@ struct RescuerProfileView: View {
                 HStack(spacing: 12) {
                     badgeItem(
                         emoji: "🐾", title: "First Rescue",
-                        isEarned: (Int(viewModel.impactStats.first?.value ?? "0") ?? 0) >= 1)
+                        isEarned: (Int(
+                            viewModel.impactStats.first(where: { $0.title == "Rescues" })?.value
+                                ?? "0") ?? 0) >= 1)
                     badgeItem(
                         emoji: "⚡", title: "Speed Hero",
                         isEarned: viewModel.totalCredits >= 50)
@@ -315,7 +317,9 @@ struct RescuerProfileView: View {
                         isEarned: viewModel.totalCredits >= 100)
                     badgeItem(
                         emoji: "💪", title: "10 Rescues",
-                        isEarned: (Int(viewModel.impactStats.first?.value ?? "0") ?? 0) >= 10)
+                        isEarned: (Int(
+                            viewModel.impactStats.first(where: { $0.title == "Rescues" })?.value
+                                ?? "0") ?? 0) >= 10)
                     badgeItem(
                         emoji: "🏆", title: "Pawsitive Hero",
                         isEarned: viewModel.totalCredits >= 1000)

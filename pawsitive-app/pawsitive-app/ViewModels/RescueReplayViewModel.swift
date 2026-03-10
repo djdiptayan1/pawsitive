@@ -145,7 +145,7 @@ class RescueReplayViewModel: ObservableObject {
         }
 
         isPlaying = true
-        replayTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) {
+        replayTimer = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: true) {
             [weak self] _ in
             Task { @MainActor in
                 self?.advanceReplay()

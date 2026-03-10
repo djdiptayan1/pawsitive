@@ -13,8 +13,8 @@ export async function awardCredits(incidentId, rescuerId, severity, responseMinu
         p_incident_id: incidentId,
         p_rescuer_id: rescuerId,
         p_severity: severity,
-        p_response_minutes: responseMinutes || 10,
-        p_distance_km: distanceKm || 0,
+        p_response_minutes: responseMinutes ?? 10,
+        p_distance_km: distanceKm ?? 0,
     });
 
     if (error) {
