@@ -223,7 +223,7 @@ struct JobCard: View {
                     Image(systemName: "clock")
                         .font(.system(size: 14))
                         .foregroundColor(AppConfig.Colors.textSecondary)
-                    Text(RescuerProfileViewModel.formatSupabaseDate(incident.createdAt))
+                    Text(DateUtils.formatSupabaseDate(incident.createdAt))
                         .font(AppConfig.Fonts.small)
                         .foregroundColor(AppConfig.Colors.textSecondary)
                 }

@@ -7,6 +7,7 @@
 
 import Combine
 import Foundation
+import Supabase
 
 final class NetworkManager {
 
@@ -29,9 +30,26 @@ final class NetworkManager {
             throw NetworkError.invalidURL
         }
 
+        // Fetch token from Supabase internally for all requests that require it
+        var finalHeaders = endpoint.headers ?? [:]
+
+        do {
+            let session = try await supabase.auth.session
+            let token = session.accessToken
+            finalHeaders["Authorization"] = "Bearer \(token)"
+            try? KeychainManager.shared.save(key: .accessToken, value: token)
+        } catch {
+            print(
+                "⚠️ [NetworkManager] Could not fetch Supabase session, using keychain or proceeding without token"
+            )
+            if let token = KeychainManager.shared.getString(key: .accessToken) {
+                finalHeaders["Authorization"] = "Bearer \(token)"
+            }
+        }
+
         var request = URLRequest(url: url)
         request.httpMethod = endpoint.method.rawValue
-        request.allHTTPHeaderFields = endpoint.headers
+        request.allHTTPHeaderFields = finalHeaders
 
         // Disable caching to always get fresh data
         request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData

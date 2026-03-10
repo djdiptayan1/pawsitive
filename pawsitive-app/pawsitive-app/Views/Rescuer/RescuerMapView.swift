@@ -250,7 +250,7 @@ struct IncidentDetailSheet: View {
                     HStack(spacing: 6) {
                         Image(systemName: "clock")
                             .foregroundColor(AppConfig.Colors.textSecondary)
-                        Text(RescuerProfileViewModel.formatSupabaseDate(date))
+                        Text(DateUtils.formatSupabaseDate(date))
                             .font(AppConfig.Fonts.small)
                             .foregroundColor(AppConfig.Colors.textSecondary)
                     }

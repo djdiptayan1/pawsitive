@@ -185,7 +185,7 @@ struct RescuerProfileView: View {
                                                 .font(AppConfig.Fonts.bodyBold)
                                                 .foregroundColor(AppConfig.Colors.textPrimary)
                                             Text(
-                                                RescuerProfileViewModel.formatSupabaseDate(
+                                                DateUtils.formatSupabaseDate(
                                                     activity.createdAt)
                                             )
                                             .font(AppConfig.Fonts.body)

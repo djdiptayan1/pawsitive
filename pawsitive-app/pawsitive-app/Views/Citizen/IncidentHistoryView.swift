@@ -161,7 +161,7 @@ struct IncidentHistoryView: View {
                             .font(.system(size: 12))
                             .foregroundColor(AppConfig.Colors.textSecondary)
                             .frame(width: 14)
-                        Text(viewModel.formattedDate(from: incident.createdAt))
+                        Text(DateUtils.formatSupabaseDate(incident.createdAt))
                             .font(.system(size: 13, weight: .regular, design: .rounded))
                             .foregroundColor(AppConfig.Colors.textSecondary)
                     }
