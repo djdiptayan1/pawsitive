@@ -18,13 +18,6 @@ struct LocationHistoryPoint: Codable, Identifiable {
     let lat: Double
     let lng: Double
     let createdAt: String
-
-    enum CodingKeys: String, CodingKey {
-        case id
-        case rescuerId = "rescuer_id"
-        case lat, lng
-        case createdAt = "created_at"
-    }
 }
 
 struct LocationHistoryResponse: Codable {
@@ -95,9 +88,13 @@ class RescueReplayViewModel: ObservableObject {
                 }
 
                 // Parse timestamps for time display
-                let formatter = ISO8601DateFormatter()
-                formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-                timestamps = points.compactMap { formatter.date(from: $0.createdAt) }
+                let isoFull = ISO8601DateFormatter()
+                isoFull.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+                let isoBasic = ISO8601DateFormatter()
+                isoBasic.formatOptions = [.withInternetDateTime]
+                timestamps = points.compactMap {
+                    isoFull.date(from: $0.createdAt) ?? isoBasic.date(from: $0.createdAt)
+                }
 
                 // Set initial state
                 currentReplayPosition = routeCoordinates.first
@@ -120,6 +117,14 @@ class RescueReplayViewModel: ObservableObject {
                     cameraPosition = .region(region)
                 }
 
+                isLoading = false
+            } catch let networkError as NetworkError {
+                switch networkError {
+                case .httpError(let statusCode):
+                    errorMessage = "Server error (\(statusCode)). Please try again later."
+                default:
+                    errorMessage = "Could not load rescue replay. Please check your connection."
+                }
                 isLoading = false
             } catch {
                 errorMessage = "Could not load rescue replay."
