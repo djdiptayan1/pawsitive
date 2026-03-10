@@ -59,6 +59,8 @@ class CitizenMapViewModel: ObservableObject {
     @Published var rescuerLocation: CLLocationCoordinate2D?
     @Published var route: MKRoute?
     @Published var etaSeconds: Int?
+    @Published var rescueCompletionPhotoUrl: String?
+    @Published var rescueCompletionDropOffType: String?
 
     // Nearby rescuers (shown on map always)
     @Published var nearbyRescuers: [NearbyRescuer] = []
@@ -180,13 +182,12 @@ class CitizenMapViewModel: ObservableObject {
                     ngoCity: dto.rescuer?.ngo?.operatingCity
                 )
 
-                let wasNil = self.activeIncident == nil
-                self.activeIncident = incident
+                let wasNil = activeIncident == nil
+                activeIncident = incident
 
                 // If rescue is active/dispatched and we have a rescuer, connect WS
                 if incident.status == "dispatched" || incident.status == "active",
-                    incident.rescuerId != nil
-                {
+                   incident.rescuerId != nil {
                     if !wsConnected { connectWebSocket(incidentId: incident.id) }
                 } else {
                     disconnectWebSocket()
@@ -220,7 +221,7 @@ class CitizenMapViewModel: ObservableObject {
 
     func fetchNearbyRescuers() async {
         guard let token = KeychainManager.shared.getString(key: .accessToken),
-            let userLoc = userLocation
+              let userLoc = userLocation
         else {
             print("⚠️ [Nearby Rescuers] Skipped - token or location missing")
             print("   Token exists: \(KeychainManager.shared.getString(key: .accessToken) != nil)")
@@ -260,11 +261,11 @@ class CitizenMapViewModel: ObservableObject {
             print("✅ [Nearby Rescuers] Response received: \(result.rescuers.count) rescuers")
             for (index, rescuer) in result.rescuers.enumerated() {
                 print(
-                    "   [\(index+1)] \(rescuer.fullName ?? "Unknown") - \(rescuer.distanceMeters ?? 0)m - Coords: (\(rescuer.lat ?? 0), \(rescuer.lng ?? 0))"
+                    "   [\(index + 1)] \(rescuer.fullName ?? "Unknown") - \(rescuer.distanceMeters ?? 0)m - Coords: (\(rescuer.lat ?? 0), \(rescuer.lng ?? 0))"
                 )
             }
 
-            self.nearbyRescuers = result.rescuers.compactMap { dto in
+            nearbyRescuers = result.rescuers.compactMap { dto in
                 guard let lat = dto.lat, let lng = dto.lng else { return nil }
                 return NearbyRescuer(
                     id: dto.rescuerId,
@@ -273,7 +274,7 @@ class CitizenMapViewModel: ObservableObject {
                     coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lng)
                 )
             }
-            print("📍 [Nearby Rescuers] Displaying \(self.nearbyRescuers.count) rescuers on map")
+            print("📍 [Nearby Rescuers] Displaying \(nearbyRescuers.count) rescuers on map")
         } catch {
             print("❌ [Nearby Rescuers] Error: \(error.localizedDescription)")
             if let error = error as? NetworkError {
@@ -335,6 +336,7 @@ class CitizenMapViewModel: ObservableObject {
     }
 
     // MARK: - Native POI Search (Vet / Pet Clinics)
+
     func fetchNearbyVetPlaces() async {
         guard let userLoc = userLocation else { return }
         guard !isFetchingVetPlaces else { return }
@@ -414,19 +416,18 @@ class CitizenMapViewModel: ObservableObject {
     private func receiveMessage() {
         wsTask?.receive { [weak self] result in
             switch result {
-            case .success(let message):
-                if case .string(let text) = message,
-                    let data = text.data(using: .utf8)
-                {
+            case let .success(message):
+                if case let .string(text) = message,
+                   let data = text.data(using: .utf8) {
                     self?.handleWSMessage(data)
                 }
-                self?.receiveMessage()  // Keep listening
+                self?.receiveMessage() // Keep listening
             case .failure:
                 Task { @MainActor in
                     self?.wsConnected = false
                     // Auto-reconnect after 5s if we still have an active incident
                     if let incidentId = self?.activeIncident?.id {
-                        try? await Task.sleep(nanoseconds: 5_000_000_000)
+                        try? await Task.sleep(nanoseconds: 5000000000)
                         if self?.wsConnected == false {
                             print("🔄 [WS] Auto-reconnecting for incident \(incidentId)...")
                             self?.connectWebSocket(incidentId: incidentId)
@@ -445,6 +446,14 @@ class CitizenMapViewModel: ObservableObject {
             let etaSeconds: Int?
             let rescuerId: String?
             let rescuerName: String?
+            let rescuePhotoUrl: String? // NEW — for proof of rescue
+            let dropOffType: String?
+            let notification: WSNotification?
+
+            struct WSNotification: Decodable {
+                let title: String
+                let body: String
+            }
         }
 
         guard let msg = try? JSONDecoder().decode(WSMessage.self, from: data) else { return }
@@ -464,10 +473,20 @@ class CitizenMapViewModel: ObservableObject {
 
             case "accepted":
                 // Rescuer just accepted — refresh incident data
+                if let n = msg.notification {
+                    LocalNotificationService.shared.fire(title: n.title, body: n.body)
+                }
                 await self.fetchActiveIncident()
 
             case "rescued":
                 // Incident resolved
+                if let n = msg.notification {
+                    LocalNotificationService.shared.fire(title: n.title, body: n.body)
+                }
+                if let photoUrl = msg.rescuePhotoUrl {
+                    self.rescueCompletionPhotoUrl = photoUrl // bind to UI
+                }
+                self.rescueCompletionDropOffType = msg.dropOffType
                 self.activeIncident = nil
                 self.rescuerLocation = nil
                 self.route = nil
@@ -492,7 +511,7 @@ class CitizenMapViewModel: ObservableObject {
         request.destination = MKMapItem(placemark: MKPlacemark(coordinate: destination))
         request.transportType = .automobile
 
-        MKDirections(request: request).calculate { [weak self] response, error in
+        MKDirections(request: request).calculate { [weak self] response, _ in
             Task { @MainActor in
                 if let route = response?.routes.first {
                     self?.route = route

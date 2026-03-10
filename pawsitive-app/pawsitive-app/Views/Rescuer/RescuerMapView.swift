@@ -172,7 +172,7 @@ struct RescuerMapView: View {
             //                        radius: AppConfig.UI.cardShadowRadius,
             //                        y: -AppConfig.UI.cardShadowOffsetY)
             //            )
-            .glassEffect(.regular, in: .rect(cornerRadius: AppConfig.UI.cornerRadius))
+            .glassEffect(.clear, in: .rect(cornerRadius: AppConfig.UI.cornerRadius))
             .tint(AppConfig.Colors.card)
             .padding(.horizontal, 12)
             .padding(.bottom, 8)

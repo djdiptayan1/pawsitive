@@ -61,6 +61,7 @@ struct AppConfig {
         static let body = Font.system(size: 18, weight: .regular, design: .rounded)
         static let bodyBold = Font.system(size: 18, weight: .semibold, design: .rounded)
         static let small = Font.system(size: 14, weight: .regular, design: .rounded)
+        static let smallBold = Font.system(size: 14, weight: .bold, design: .rounded)
 
         // Custom Font Helper (Call this once you add CuteDino.ttf to your info.plist)
         static func cuteDino(size: CGFloat) -> Font {

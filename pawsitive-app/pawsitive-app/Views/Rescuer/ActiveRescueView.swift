@@ -7,6 +7,7 @@
 
 import Combine
 import MapKit
+import PhotosUI
 import SwiftUI
 
 // MARK: - View
@@ -15,6 +16,8 @@ struct ActiveRescueView: View {
     @State private var showDetailSheet: Bool = false
     @State private var selectedVetPlace: ActiveRescueViewModel.NearbyVetPOI?
     @State private var showVetOptions = false
+    @State private var selectedItem: PhotosPickerItem? = nil
+    @State private var showProofError = false
 
     var body: some View {
         NavigationStack {
@@ -176,7 +179,7 @@ struct ActiveRescueView: View {
             .padding(.horizontal, AppConfig.UI.screenPadding)
             .padding(.vertical, 16)
         }
-        .glassEffect(.regular, in: .rect(cornerRadius: AppConfig.UI.cornerRadius))
+        .glassEffect( .clear, in: .rect(cornerRadius: AppConfig.UI.cornerRadius))
         .padding(.horizontal, 12)
         .padding(.bottom, 8)
     }
@@ -260,6 +263,122 @@ struct ActiveRescueView: View {
                         }
                     }
 
+                    // Proof of Rescue Section
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text("Proof of Rescue")
+                            .font(AppConfig.Fonts.headline)
+                            .foregroundColor(AppConfig.Colors.textPrimary)
+
+                        // Drop-off type selection
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Drop-off Location")
+                                .font(AppConfig.Fonts.smallBold)
+                                .foregroundColor(AppConfig.Colors.textSecondary)
+
+                            Menu {
+                                Button("Vet Hospital") { viewModel.selectedDropOffType = "vet_hospital" }
+                                Button("NGO Shelter") { viewModel.selectedDropOffType = "ngo_shelter" }
+                                Button("Treated On Scene") {
+                                    viewModel.selectedDropOffType = "treated_on_scene"
+                                }
+                            } label: {
+                                HStack {
+                                    Text(dropOffLabel(for: viewModel.selectedDropOffType))
+                                        .foregroundColor(AppConfig.Colors.textPrimary)
+                                    Spacer()
+                                    Image(systemName: "chevron.up.chevron.down")
+                                        .font(.caption)
+                                        .foregroundColor(AppConfig.Colors.accent)
+                                }
+                                .padding()
+                                .background(AppConfig.Colors.card)
+                                .cornerRadius(12)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(AppConfig.Colors.stroke.opacity(0.1), lineWidth: 1)
+                                )
+                            }
+                        }
+
+                        // Photo Selection
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Rescue Photo")
+                                .font(AppConfig.Fonts.smallBold)
+                                .foregroundColor(AppConfig.Colors.textSecondary)
+
+                            if let image = viewModel.pickedImage {
+                                ZStack(alignment: .topTrailing) {
+                                    Image(uiImage: image)
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(height: 150)
+                                        .frame(maxWidth: .infinity)
+                                        .clipShape(RoundedRectangle(cornerRadius: 12))
+
+                                    Button(action: {
+                                        viewModel.pickedImage = nil
+                                        selectedItem = nil
+                                    }) {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .font(.title2)
+                                            .foregroundColor(.white)
+                                            .padding(8)
+                                            .shadow(radius: 2)
+                                    }
+                                }
+                            } else {
+                                PhotosPicker(selection: $selectedItem, matching: .images) {
+                                    VStack(spacing: 8) {
+                                        Image(systemName: "camera.fill")
+                                            .font(.title2)
+                                        Text("Add Photo Proof")
+                                            .font(AppConfig.Fonts.smallBold)
+                                    }
+                                    .foregroundColor(AppConfig.Colors.accent)
+                                    .frame(height: 120)
+                                    .frame(maxWidth: .infinity)
+                                    .background(AppConfig.Colors.accent.opacity(0.05))
+                                    .cornerRadius(12)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(
+                                                AppConfig.Colors.accent.opacity(0.2),
+                                                style: StrokeStyle(
+                                                    lineWidth: 1, dash: [4]))
+                                    )
+                                }
+                                .onChange(of: selectedItem) { newItem in
+                                    Task {
+                                        if let data = try? await newItem?.loadTransferable(
+                                            type: Data.self),
+                                            let uiImage = UIImage(data: data)
+                                        {
+                                            viewModel.pickedImage = uiImage
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if viewModel.isUploadingPhoto {
+                            VStack(spacing: 8) {
+                                ProgressView(value: viewModel.uploadProgress)
+                                    .tint(AppConfig.Colors.accent)
+                                Text("Uploading photo proof...")
+                                    .font(AppConfig.Fonts.small)
+                                    .foregroundColor(AppConfig.Colors.textSecondary)
+                            }
+                            .padding(.top, 4)
+                        }
+                    }
+                    .padding(16)
+                    .background(AppConfig.Colors.card.opacity(0.5))
+                    .cornerRadius(16)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(AppConfig.Colors.stroke.opacity(0.05), lineWidth: 1)
+                    )
+
                     // Action Buttons
                     VStack(spacing: 12) {
                         Button(action: {
@@ -273,14 +392,23 @@ struct ActiveRescueView: View {
                         }
 
                         Button(action: {
-                            Task { await viewModel.completeRescue() }
+                            if viewModel.pickedImage == nil {
+                                showProofError = true
+                            } else {
+                                Task { await viewModel.completeRescue() }
+                            }
                         }) {
                             HStack {
-                                Image(systemName: "checkmark.seal.fill")
-                                Text("Mark as Rescued")
+                                if viewModel.isUploadingPhoto {
+                                    ProgressView().tint(.white).scaleEffect(0.8)
+                                } else {
+                                    Image(systemName: "checkmark.seal.fill")
+                                }
+                                Text(viewModel.isUploadingPhoto ? "Uploading..." : "Mark as Rescued")
                             }
                             .primaryActionStyle(color: AppConfig.Colors.success)
                         }
+                        .disabled(viewModel.isUploadingPhoto)
                     }
                     .padding(.top, 10)
                     .padding(.bottom, 30)
@@ -370,6 +498,19 @@ struct ActiveRescueView: View {
         mapItem.openInMaps(launchOptions: [
             MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeDriving
         ])
+    }
+
+    private func dropOffLabel(for value: String) -> String {
+        switch value {
+        case "vet_hospital":
+            return "Vet Hospital"
+        case "ngo_shelter":
+            return "NGO Shelter"
+        case "treated_on_scene":
+            return "Treated On Scene"
+        default:
+            return "Treated On Scene"
+        }
     }
 }
 

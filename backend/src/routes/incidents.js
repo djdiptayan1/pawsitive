@@ -102,7 +102,20 @@ router.patch('/:id/accept', requireAuth, requireRole('rescuer'), async (req, res
 // PATCH /incidents/:id/complete — rescuer marks job done
 router.patch('/:id/complete', requireAuth, requireRole('rescuer'), async (req, res, next) => {
     try {
-        const result = await completeIncidentAssignment(req.params.id, req.user.id);
+        const { rescuePhotoUrl, dropOffType } = req.body;
+        const allowedDropOffTypes = ['vet_hospital', 'ngo_shelter', 'treated_on_scene'];
+
+        if (!rescuePhotoUrl) {
+            return res.status(400).json({ error: 'Proof of rescue photo is required' });
+        }
+
+        if (dropOffType && !allowedDropOffTypes.includes(dropOffType)) {
+            return res.status(400).json({
+                error: 'dropOffType must be one of: vet_hospital, ngo_shelter, treated_on_scene'
+            });
+        }
+
+        const result = await completeIncidentAssignment(req.params.id, req.user.id, rescuePhotoUrl, dropOffType);
         res.json(result);
     } catch (err) {
         next(err);

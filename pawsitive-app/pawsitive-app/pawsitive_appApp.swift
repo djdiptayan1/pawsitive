@@ -9,6 +9,10 @@ import SwiftUI
 
 @main
 struct PawsitiveApp: App {
+    
+    init() {
+        LocalNotificationService.shared.requestPermission()
+    }
 
     @StateObject private var session = SessionViewModel()
     var body: some Scene {

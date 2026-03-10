@@ -28,6 +28,10 @@ export async function startProgressiveDispatch(incident) {
             severity,
             lat: geo_location_lat,
             lng: geo_location_lng,
+            notification: {
+                title: `🐾 ${severity} animal nearby!`,
+                body: `A ${severity.toLowerCase()} case reported. Tap to respond.`
+            }
         });
 
         // Track who was already notified
@@ -72,6 +76,10 @@ function scheduleRingExpansion(incidentId, severity, lat, lng, currentRing, ring
                 severity,
                 lat, lng,
                 ring: nextRingConfig.ring, // so iOS can show "expanding search" UI
+                notification: {
+                    title: `🐾 ${severity} animal nearby!`,
+                    body: `A ${severity.toLowerCase()} case reported. Tap to respond.`
+                }
             });
             console.log(`📡 Ring ${nextRingConfig.ring} broadcast: ${ids.length} new rescuers`);
         }

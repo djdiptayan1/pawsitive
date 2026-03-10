@@ -272,7 +272,8 @@ struct CitizenMapView: View {
         //                .fill(AppConfig.Colors.card)
         //                .shadow(color: .black.opacity(0.1), radius: AppConfig.UI.cardShadowRadius, y: -AppConfig.UI.cardShadowOffsetY)
         //        )
-        .glassEffect(.regular, in: .rect(cornerRadius: AppConfig.UI.cornerRadius))
+        .glassEffect(.clear, in: .rect(cornerRadius: AppConfig.UI.cornerRadius))
+        .tint(AppConfig.Colors.card)
         .padding(.horizontal, 12)
         .padding(.bottom, 8)
     }
@@ -303,7 +304,7 @@ struct CitizenMapView: View {
         //                    color: .black.opacity(0.08), radius: AppConfig.UI.cardShadowRadius,
         //                    y: -AppConfig.UI.cardShadowOffsetY)
         //        )
-        .glassEffect(.regular, in: .rect(cornerRadius: AppConfig.UI.cornerRadius))
+        .glassEffect( .clear, in: .rect(cornerRadius: AppConfig.UI.cornerRadius))
         .tint(AppConfig.Colors.card)
         .padding(.horizontal, 12)
         .padding(.bottom, 8)

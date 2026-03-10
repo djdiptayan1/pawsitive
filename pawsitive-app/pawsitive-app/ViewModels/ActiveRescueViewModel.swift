@@ -9,6 +9,7 @@ import Combine
 import CoreLocation
 import MapKit
 import SwiftUI
+import UIKit
 
 @MainActor
 class ActiveRescueViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
@@ -26,6 +27,12 @@ class ActiveRescueViewModel: NSObject, ObservableObject, CLLocationManagerDelega
     @Published var completeSuccess = false
     @Published var route: MKRoute? = nil
     @Published var nearbyVetPlaces: [NearbyVetPOI] = []
+    
+    // Proof of Rescue State
+    @Published var pickedImage: UIImage? = nil
+    @Published var selectedDropOffType: String = "treated_on_scene"
+    @Published var isUploadingPhoto = false
+    @Published var uploadProgress: Double = 0
 
     private var pollTimer: Timer?
     private var locationTimer: Timer?
@@ -246,20 +253,85 @@ class ActiveRescueViewModel: NSObject, ObservableObject, CLLocationManagerDelega
             let token = KeychainManager.shared.getString(key: .accessToken)
         else { return }
 
+        isLoading = true
+        guard let image = pickedImage else {
+            completeSuccess = false
+            showCompleteAlert = true
+            isLoading = false
+            return
+        }
+
+        let finalPhotoUrl = await uploadRescuePhoto(image)
+
+        guard let finalPhotoUrl else {
+            completeSuccess = false
+            showCompleteAlert = true
+            isLoading = false
+            return
+        }
+
         do {
             struct CompleteResponse: Decodable {
                 let success: Bool?
             }
             let _: CompleteResponse = try await NetworkManager.shared.request(
-                endpoint: IncidentEndpoint.completeIncident(token: token, id: rescue.id))
+                endpoint: IncidentEndpoint.completeIncident(
+                    token: token,
+                    id: rescue.id,
+                    rescuePhotoUrl: finalPhotoUrl,
+                    dropOffType: selectedDropOffType
+                )
+            )
             completeSuccess = true
             activeRescue = nil
             route = nil
+            pickedImage = nil
         } catch {
             completeSuccess = false
             print("Complete rescue error: \(error)")
         }
+        isLoading = false
         showCompleteAlert = true
+    }
+
+    func uploadRescuePhoto(_ image: UIImage) async -> String? {
+        guard let imageData = image.jpegData(compressionQuality: 0.7) else { return nil }
+        isUploadingPhoto = true
+        defer { isUploadingPhoto = false }
+
+        do {
+            let url = URL(string: "\(AppConfig.ApiEndpoints.baseURL)upload/photo")!
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            
+            if let token = KeychainManager.shared.getString(key: .accessToken) {
+                request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            }
+
+            let boundary = UUID().uuidString
+            request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+
+            var body = Data()
+            body.append("--\(boundary)\r\n".data(using: .utf8)!)
+            body.append("Content-Disposition: form-data; name=\"photo\"; filename=\"rescue.jpg\"\r\n".data(using: .utf8)!)
+            body.append("Content-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)
+            body.append(imageData)
+            body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
+
+            request.httpBody = body
+
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+                return nil
+            }
+
+            struct UploadRes: Decodable { let url: String }
+            let res = try JSONDecoder().decode(UploadRes.self, from: data)
+            return res.url
+        } catch {
+            print("Photo upload failed: \(error)")
+            return nil
+        }
     }
 
     private func calculateRoute(

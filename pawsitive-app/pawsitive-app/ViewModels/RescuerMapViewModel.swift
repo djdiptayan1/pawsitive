@@ -36,6 +36,7 @@ class RescuerMapViewModel: NSObject, ObservableObject, CLLocationManagerDelegate
     }
 
     // MARK: - Location Services
+
     private func setupLocationManager() {
         locationManager.delegate = self
         locationManager.desiredAccuracy = kCLLocationAccuracyBest
@@ -54,6 +55,7 @@ class RescuerMapViewModel: NSObject, ObservableObject, CLLocationManagerDelegate
     }
 
     // MARK: - Lifecycle
+
     func startMonitoring() {
         guard !isMonitoring else { return }
         isMonitoring = true
@@ -103,6 +105,7 @@ class RescuerMapViewModel: NSObject, ObservableObject, CLLocationManagerDelegate
     }
 
     // MARK: - Native POI Search
+
     func fetchNearbyVetPlaces() async {
         guard let userLocation else { return }
         guard !isFetchingVetPlaces else { return }
@@ -154,7 +157,7 @@ class RescuerMapViewModel: NSObject, ObservableObject, CLLocationManagerDelegate
 
     private func pingLocation() async {
         guard let token = KeychainManager.shared.getString(key: .accessToken),
-            let location = userLocation
+              let location = userLocation
         else { return }
 
         do {
@@ -186,8 +189,7 @@ class RescuerMapViewModel: NSObject, ObservableObject, CLLocationManagerDelegate
                 keyDecodingStrategy: .useDefaultKeys
             )
             if let incident = result.incident,
-                incident.status == "dispatched" || incident.status == "active"
-            {
+               incident.status == "dispatched" || incident.status == "active" {
                 activeRescueId = incident.id
                 print("📋 [RescuerMap] Restored active rescue ID: \(incident.id)")
             }
@@ -197,6 +199,7 @@ class RescuerMapViewModel: NSObject, ObservableObject, CLLocationManagerDelegate
     }
 
     // MARK: - WebSocket
+
     private func connectWebSocket() {
         guard let userId = KeychainManager.shared.getString(key: .userID) else { return }
 
@@ -225,10 +228,9 @@ class RescuerMapViewModel: NSObject, ObservableObject, CLLocationManagerDelegate
     private func receiveWSMessage() {
         wsTask?.receive { [weak self] result in
             switch result {
-            case .success(let message):
-                if case .string(let text) = message,
-                    let data = text.data(using: .utf8)
-                {
+            case let .success(message):
+                if case let .string(text) = message,
+                   let data = text.data(using: .utf8) {
                     self?.handleWSMessage(data)
                 }
                 self?.receiveWSMessage()
@@ -236,7 +238,7 @@ class RescuerMapViewModel: NSObject, ObservableObject, CLLocationManagerDelegate
                 Task { @MainActor in
                     self?.wsConnected = false
                     // Reconnect after delay
-                    try? await Task.sleep(nanoseconds: 5_000_000_000)
+                    try? await Task.sleep(nanoseconds: 5000000000)
                     self?.connectWebSocket()
                 }
             }
@@ -248,6 +250,12 @@ class RescuerMapViewModel: NSObject, ObservableObject, CLLocationManagerDelegate
             let type: String
             let incidentId: String?
             let severity: String?
+            let notification: WSNotification?
+
+            struct WSNotification: Decodable {
+                let title: String
+                let body: String
+            }
         }
         guard let msg = try? JSONDecoder().decode(WSMessage.self, from: data) else { return }
 
@@ -255,6 +263,15 @@ class RescuerMapViewModel: NSObject, ObservableObject, CLLocationManagerDelegate
             guard let self else { return }
             switch msg.type {
             case "new_incident":
+                if let n = msg.notification {
+                    LocalNotificationService.shared.fire(title: n.title, body: n.body)
+                } else {
+                    // Fallback if backend doesn't send notification key
+                    LocalNotificationService.shared.fire(
+                        title: "🐾 Animal in distress nearby!",
+                        body: "A \(msg.severity ?? "injured") animal was reported near you. Tap to respond."
+                    )
+                }
                 self.fetchPendingIncidents()
             default:
                 break
@@ -263,6 +280,7 @@ class RescuerMapViewModel: NSObject, ObservableObject, CLLocationManagerDelegate
     }
 
     // MARK: - Incidents
+
     func fetchPendingIncidents() {
         Task {
             isLoading = true

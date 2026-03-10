@@ -168,24 +168,28 @@ export async function acceptIncidentAssignment(incidentId, user) {
     return result;
 }
 
-export async function completeIncident(incidentId, rescuerId) {
+export async function completeIncident(incidentId, rescuerId, rescuePhotoUrl, dropOffType) {
     const { data, error } = await supabase.rpc('complete_incident', {
         p_incident_id: incidentId,
         p_rescuer_id: rescuerId,
+        p_rescue_photo_url: rescuePhotoUrl,
+        p_drop_off_type: dropOffType || 'treated_on_scene',
     });
     if (error) throw new Error(error.message);
     return data;
 }
 
-export async function completeIncidentAssignment(incidentId, rescuerId) {
-    const result = await completeIncident(incidentId, rescuerId);
+export async function completeIncidentAssignment(incidentId, rescuerId, rescuePhotoUrl, dropOffType) {
+    const result = await completeIncident(incidentId, rescuerId, rescuePhotoUrl, dropOffType);
 
     broadcastToIncidentRoom(incidentId, {
         type: 'rescued',
         incidentId: incidentId,
+        rescuePhotoUrl,
+        dropOffType: dropOffType || 'treated_on_scene',
         notification: {
-            title: 'Incident Resolved 🐾',
-            body: 'The rescuer has marked this incident as rescued. Thank you!'
+            title: 'Animal is safe! 🐾',
+            body: 'The rescuer just sent a photo. Thank you for reporting this case.'
         }
     });
 
