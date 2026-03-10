@@ -129,6 +129,22 @@ struct CitizenMapView: View {
         } message: {
             Text(selectedVetPlace?.subtitle ?? "")
         }
+        .fullScreenCover(
+            isPresented: Binding(
+                get: { viewModel.rescueCompletionPhotoUrl != nil },
+                set: { isPresented in
+                    if !isPresented {
+                        viewModel.rescueCompletionPhotoUrl = nil
+                        viewModel.rescueCompletionDropOffType = nil
+                    }
+                }
+            )
+        ) {
+            RescueCompletionCelebrationView(
+                rescuePhotoUrl: viewModel.rescueCompletionPhotoUrl ?? "",
+                dropOffType: viewModel.rescueCompletionDropOffType ?? "treated_on_scene"
+            )
+        }
     }
 
     // MARK: - Header Overlay

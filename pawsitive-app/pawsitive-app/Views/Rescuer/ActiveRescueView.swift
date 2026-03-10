@@ -44,7 +44,7 @@ struct ActiveRescueView: View {
                 message:
                     "Great work! The animal has been marked as rescued. Thank you for being a hero.",
                 animationName: "thankYou",
-                showButtons: true,
+                showButtons: false,
                 onBackToMap: {
                     // Optional: reset VM or navigate
                 },
