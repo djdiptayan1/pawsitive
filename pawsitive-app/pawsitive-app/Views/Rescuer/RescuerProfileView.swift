@@ -257,17 +257,20 @@ struct RescuerProfileView: View {
     }
 
     private func tierThresholds(credits: Int) -> (Int, Int, String) {
-        if credits >= 1000 { return (1000, 2000, "Legend") }
+        if credits >= 1000 { return (1000, 2000, "Pawsitive Hero") }
         if credits >= 500 { return (500, 1000, "Pawsitive Hero") }
         if credits >= 100 { return (100, 500, "Elite Rescuer") }
         return (0, 100, "Responder")
     }
 
     // MARK: - Badges Section
+
+    private var rescueCount: Int {
+        Int(viewModel.impactStats.first(where: { $0.title == "Rescues" })?.value ?? "0") ?? 0
+    }
+
     @ViewBuilder
     private var badgesSection: some View {
-        let rescueCount = Int(
-            viewModel.impactStats.first(where: { $0.title == "Rescues" })?.value ?? "0") ?? 0
         let badges: [(emoji: String, title: String, subtitle: String, isEarned: Bool)] = [
             ("🐾", "First Rescue", "Complete 1 rescue", rescueCount >= 1),
             ("⚡", "Speed Hero", "Earn 50 credits", viewModel.totalCredits >= 50),
