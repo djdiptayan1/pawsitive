@@ -18,6 +18,7 @@ struct ActiveRescueView: View {
     @State private var showVetOptions = false
     @State private var selectedItem: PhotosPickerItem? = nil
     @State private var showProofError = false
+    @State private var stageNote: String = ""
 
     var body: some View {
         NavigationStack {
@@ -179,7 +180,7 @@ struct ActiveRescueView: View {
             .padding(.horizontal, AppConfig.UI.screenPadding)
             .padding(.vertical, 16)
         }
-        .glassEffect( .clear, in: .rect(cornerRadius: AppConfig.UI.cornerRadius))
+        .glassEffect( .regular, in: .rect(cornerRadius: AppConfig.UI.cornerRadius))
         .padding(.horizontal, 12)
         .padding(.bottom, 8)
     }
@@ -262,6 +263,74 @@ struct ActiveRescueView: View {
                                 value: reporter, iconColor: AppConfig.Colors.textSecondary)
                         }
                     }
+
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Animal Condition Timeline")
+                            .font(AppConfig.Fonts.headline)
+                            .foregroundColor(AppConfig.Colors.textPrimary)
+
+                        TextField("Optional note (e.g., Animal is conscious)", text: $stageNote)
+                            .font(AppConfig.Fonts.small)
+                            .padding(12)
+                            .background(AppConfig.Colors.card)
+                            .cornerRadius(12)
+
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(ActiveRescueViewModel.RescueStage.allCases) { stage in
+                                    Button {
+                                        Task {
+                                            await viewModel.postConditionUpdate(stage: stage, note: stageNote)
+                                            stageNote = ""
+                                        }
+                                    } label: {
+                                        HStack(spacing: 6) {
+                                            Text(stage.icon)
+                                            Text(stage.title)
+                                        }
+                                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 8)
+                                        .background(AppConfig.Colors.accent)
+                                        .clipShape(Capsule())
+                                    }
+                                    .disabled(viewModel.isPostingConditionUpdate)
+                                }
+                            }
+                        }
+
+                        if !viewModel.conditionEntries.isEmpty {
+                            VStack(alignment: .leading, spacing: 8) {
+                                ForEach(viewModel.conditionEntries.suffix(5)) { entry in
+                                    HStack(alignment: .top, spacing: 8) {
+                                        Circle()
+                                            .fill(AppConfig.Colors.success)
+                                            .frame(width: 8, height: 8)
+                                            .padding(.top, 5)
+
+                                        VStack(alignment: .leading, spacing: 3) {
+                                            Text(viewModel.stageLabel(entry.stage))
+                                                .font(AppConfig.Fonts.smallBold)
+                                                .foregroundColor(AppConfig.Colors.textPrimary)
+                                            if let note = entry.note, !note.isEmpty {
+                                                Text(note)
+                                                    .font(AppConfig.Fonts.small)
+                                                    .foregroundColor(AppConfig.Colors.textSecondary)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    .padding(16)
+                    .background(AppConfig.Colors.card.opacity(0.5))
+                    .cornerRadius(16)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(AppConfig.Colors.stroke.opacity(0.05), lineWidth: 1)
+                    )
 
                     // Proof of Rescue Section
                     VStack(alignment: .leading, spacing: 16) {

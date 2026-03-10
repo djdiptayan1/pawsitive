@@ -90,15 +90,23 @@ struct SOSView: View {
             CitizenProfileView(sessionVM: session)
                 .environmentObject(session)
         }
-        .fullScreenCover(isPresented: $sosVM.showSuccessAlert) {
+        .fullScreenCover(isPresented: $sosVM.showSuccessPopup) {
             SuccessPopupView(
-                title: "Report Submitted",
-                heroText: "Help is on the way!",
-                message:
-                    "Your report has been broadcasted to nearby rescuers. Please stay nearby if safe to do so.",
-                animationName: "thankYou",  // Or another relevant animation
-                showButtons: false
+                title: "SOS Sent",
+                heroText: "Help Is On The Way!",
+                message: "Thank you for reporting this incident. A rescuer is being notified right now.",
+                animationName: "thankYou",
+                showButtons: false,
+                showFirstAidButton: sosVM.shouldOfferFirstAidAfterSuccess,
+                onShowFirstAid: {
+                    sosVM.showFirstAidGuide = true
+                }
             )
+        }
+        .fullScreenCover(isPresented: $sosVM.showFirstAidGuide) {
+            FirstAidGuideView(severity: sosVM.lastSubmittedSeverity) {
+                sosVM.showFirstAidGuide = false
+            }
         }
         .onAppear {
             cameraVM.checkPermission()

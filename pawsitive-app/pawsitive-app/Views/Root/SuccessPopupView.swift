@@ -18,10 +18,12 @@ struct SuccessPopupView: View {
         "Your rescue mission was successful!\nBuddy is safe and sound. Thanks for\nmaking a difference."
     var animationName: String = "thankYou"
     var showButtons: Bool = false
+    var showFirstAidButton: Bool = false
 
     // Callbacks for your buttons (now optional)
     var onBackToMap: (() -> Void)? = nil
     var onShareStory: (() -> Void)? = nil
+    var onShowFirstAid: (() -> Void)? = nil
 
     var body: some View {
         ZStack {
@@ -125,6 +127,39 @@ struct SuccessPopupView: View {
                                     color: AppConfig.Colors.success.opacity(0.3),
                                     radius: AppConfig.UI.cardShadowRadius,
                                     y: AppConfig.UI.cardShadowOffsetY)
+                        }
+                    }
+                    .padding(.horizontal, AppConfig.UI.screenPadding)
+                    .padding(.bottom, AppConfig.UI.padding * 2.5)
+                } else if showFirstAidButton {
+                    VStack(spacing: 10) {
+                        Button(action: {
+                            dismiss()
+                            onShowFirstAid?()
+                        }) {
+                            Text("View First Aid Guide")
+                                .font(AppConfig.Fonts.bodyBold)
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, AppConfig.UI.padding + 2)
+                                .background(AppConfig.Colors.accent)
+                                .cornerRadius(AppConfig.UI.buttonCornerRadius)
+                        }
+
+                        Button(action: {
+                            dismiss()
+                        }) {
+                            Text("Skip")
+                                .font(AppConfig.Fonts.bodyBold)
+                                .foregroundColor(AppConfig.Colors.textPrimary)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, AppConfig.UI.padding + 2)
+                                .background(AppConfig.Colors.card)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: AppConfig.UI.buttonCornerRadius)
+                                        .stroke(AppConfig.Colors.stroke.opacity(0.18), lineWidth: 1)
+                                )
+                                .cornerRadius(AppConfig.UI.buttonCornerRadius)
                         }
                     }
                     .padding(.horizontal, AppConfig.UI.screenPadding)

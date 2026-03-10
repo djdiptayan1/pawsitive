@@ -13,95 +13,160 @@ struct CitizenMapView: View {
     @State private var showRescuerDetails = false
     @State private var selectedVetPlace: NearbyVetPOI?
     @State private var showVetOptions = false
+    @State private var selectedWitnessIncident: NearbyWitnessIncident?
+    @State private var showWitnessDialog = false
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            // MARK: - Map
-            Map(position: $viewModel.cameraPosition) {
-                // Custom user location annotation (purple paw)
-                if let userLoc = viewModel.userLocation {
-                    Annotation("You", coordinate: userLoc, anchor: .center) {
-                        UserLocationPinView()
-                    }
-                }
+        NavigationStack {
+            ZStack(alignment: .bottom) {
+                // MARK: - Map
 
-                // Incident pin
-                if let incident = viewModel.activeIncident {
-                    Annotation(
-                        incident.title,
-                        coordinate: incident.coordinate,
-                        anchor: .bottom
-                    ) {
-                        IncidentAnnotationView(severity: incident.severity)
+                Map(position: $viewModel.cameraPosition) {
+                    if viewModel.isHeatmapEnabled {
+                        ForEach(viewModel.heatmapPoints) { point in
+                            MapCircle(center: point.coordinate, radius: CLLocationDistance(Double(point.weight) * 160))
+                                .foregroundStyle(
+                                    point.weight >= 3
+                                        ? AppConfig.Colors.alert.opacity(0.24)
+                                        : point.weight == 2
+                                        ? AppConfig.Colors.warning.opacity(0.2)
+                                        : AppConfig.Colors.accent.opacity(0.16)
+                                )
+                        }
                     }
-                }
 
-                // Rescuer pin (live)
-                if let rescuerLoc = viewModel.rescuerLocation {
-                    Annotation(
-                        viewModel.activeIncident?.rescuerName ?? "Rescuer",
-                        coordinate: rescuerLoc,
-                        anchor: .center
-                    ) {
-                        RescuerAnnotationView()
+                    // Custom user location annotation (purple paw)
+                    if let userLoc = viewModel.userLocation {
+                        Annotation("You", coordinate: userLoc, anchor: .center) {
+                            UserLocationPinView()
+                        }
                     }
-                }
 
-                // Nearby available rescuers
-                ForEach(viewModel.nearbyRescuers) { rescuer in
-                    Annotation(
-                        rescuer.name,
-                        coordinate: rescuer.coordinate,
-                        anchor: .center
-                    ) {
-                        NearbyRescuerPinView()
+                    // Incident pin
+                    if let incident = viewModel.activeIncident {
+                        Annotation(
+                            incident.title,
+                            coordinate: incident.coordinate,
+                            anchor: .bottom
+                        ) {
+                            IncidentAnnotationView(severity: incident.severity)
+                        }
                     }
-                }
 
-                // Nearby vet hospitals and pet clinics (native MapKit search)
-                ForEach(viewModel.nearbyVetPlaces) { place in
-                    Annotation(place.name, coordinate: place.coordinate, anchor: .center) {
-                        Image(systemName: "cross.vial.fill")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(.white)
-                            .padding(8)
-                            .background(Color.mint)
-                            .clipShape(Circle())
-                            .shadow(color: Color.mint.opacity(0.4), radius: 4, y: 2)
-                            .onTapGesture {
-                                selectedVetPlace = place
-                                showVetOptions = true
+                    if viewModel.activeIncident == nil {
+                        ForEach(viewModel.nearbyWitnessIncidents) { incident in
+                            Annotation(
+                                incident.title,
+                                coordinate: incident.coordinate,
+                                anchor: .bottom
+                            ) {
+                                Button {
+                                    selectedWitnessIncident = incident
+                                    showWitnessDialog = true
+                                } label: {
+                                    VStack(spacing: 6) {
+                                        IncidentAnnotationView(severity: incident.severity)
+                                        Text("\(incident.witnessCount + 1) witnesses")
+                                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                                            .foregroundColor(AppConfig.Colors.textPrimary)
+                                            .padding(.horizontal, 8)
+                                            .padding(.vertical, 4)
+                                            .background(AppConfig.Colors.card.opacity(0.95))
+                                            .clipShape(Capsule())
+                                    }
+                                }
+                                .buttonStyle(.plain)
                             }
+                        }
+                    }
+
+                    // Rescuer pin (live)
+                    if let rescuerLoc = viewModel.rescuerLocation {
+                        Annotation(
+                            viewModel.activeIncident?.rescuerName ?? "Rescuer",
+                            coordinate: rescuerLoc,
+                            anchor: .center
+                        ) {
+                            RescuerAnnotationView()
+                        }
+                    }
+
+                    // Nearby available rescuers
+                    ForEach(viewModel.nearbyRescuers) { rescuer in
+                        Annotation(
+                            rescuer.name,
+                            coordinate: rescuer.coordinate,
+                            anchor: .center
+                        ) {
+                            NearbyRescuerPinView()
+                        }
+                    }
+
+                    // Nearby vet hospitals and pet clinics (native MapKit search)
+                    ForEach(viewModel.nearbyVetPlaces) { place in
+                        Annotation(place.name, coordinate: place.coordinate, anchor: .center) {
+                            Image(systemName: "cross.vial.fill")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(.white)
+                                .padding(8)
+                                .background(Color.mint)
+                                .clipShape(Circle())
+                                .shadow(color: Color.mint.opacity(0.4), radius: 4, y: 2)
+                                .onTapGesture {
+                                    selectedVetPlace = place
+                                    showVetOptions = true
+                                }
+                        }
+                    }
+
+                    // Route polyline
+                    if let route = viewModel.route {
+                        MapPolyline(route.polyline)
+                            .stroke(
+                                AppConfig.Colors.accent,
+                                style: StrokeStyle(lineWidth: 5, lineCap: .round, dash: [8, 6]))
                     }
                 }
+                .mapStyle(.standard(pointsOfInterest: .excludingAll))
+                .mapControls {
+                    MapUserLocationButton()
+                    MapCompass()
+                }
+                .onAppear {
+                    if let loc = viewModel.userLocation {
+                        viewModel.cameraPosition = .region(
+                            MKCoordinateRegion(
+                                center: loc,
+                                span: MKCoordinateSpan(latitudeDelta: 0.02, longitudeDelta: 0.02)
+                            )
+                        )
+                    }
+                }
+                //            .ignoresSafeArea(edges: .top)
 
-                // Route polyline
-                if let route = viewModel.route {
-                    MapPolyline(route.polyline)
-                        .stroke(
-                            AppConfig.Colors.accent,
-                            style: StrokeStyle(lineWidth: 5, lineCap: .round, dash: [8, 6]))
+                //            headerOverlay
+
+                // MARK: - Bottom Status Card
+
+                VStack {
+                    Spacer()
+
+                    if let incident = viewModel.activeIncident {
+                        statusCard(incident)
+                    } else {
+                        idleCard
+                    }
                 }
             }
-            .mapStyle(.standard(pointsOfInterest: .excludingAll))
-            .mapControls {
-                MapUserLocationButton()
-                MapCompass()
-            }
-            //            .ignoresSafeArea(edges: .top)
-
-            //            headerOverlay
-
-            // MARK: - Bottom Status Card
-            VStack {
-                Spacer()
-
-                if let incident = viewModel.activeIncident {
-                    statusCard(incident)
-                } else {
-                    idleCard
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("heatmap", systemImage: viewModel.isHeatmapEnabled ? "flame.fill" : "flame") {
+                        viewModel.isHeatmapEnabled.toggle()
+                    }
+                    .accessibilityLabel("Toggle heatmap")
                 }
             }
+            .navigationBarTitleDisplayMode(.inline)
         }
         .onAppear {
             viewModel.startPolling()
@@ -111,8 +176,7 @@ struct CitizenMapView: View {
         }
         .sheet(isPresented: $showRescuerDetails) {
             if let incident = viewModel.activeIncident,
-                incident.status == "dispatched" || incident.status == "active"
-            {
+               incident.status == "dispatched" || incident.status == "active" {
                 RescuerDetailSheet(incident: incident)
             }
         }
@@ -128,6 +192,37 @@ struct CitizenMapView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text(selectedVetPlace?.subtitle ?? "")
+        }
+        .confirmationDialog(
+            "I saw this too",
+            isPresented: $showWitnessDialog,
+            titleVisibility: .visible
+        ) {
+            if let incident = selectedWitnessIncident {
+                Button("Minor") {
+                    Task { await viewModel.submitWitnessReport(incident: incident, severity: .minor) }
+                }
+                Button("Moderate") {
+                    Task { await viewModel.submitWitnessReport(incident: incident, severity: .moderate) }
+                }
+                Button("Severe") {
+                    Task { await viewModel.submitWitnessReport(incident: incident, severity: .severe) }
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Confirm this nearby incident and help prioritize rescue urgency.")
+        }
+        .alert(
+            "Witness Update",
+            isPresented: Binding(
+                get: { viewModel.witnessActionMessage != nil },
+                set: { if !$0 { viewModel.witnessActionMessage = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(viewModel.witnessActionMessage ?? "")
         }
         .fullScreenCover(
             isPresented: Binding(
@@ -253,6 +348,38 @@ struct CitizenMapView: View {
                     .onTapGesture {
                         showRescuerDetails = true
                     }
+
+                    if !viewModel.conditionTimeline.isEmpty {
+                        Divider()
+                            .padding(.top, 6)
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Animal Condition Timeline")
+                                .font(AppConfig.Fonts.smallBold)
+                                .foregroundColor(AppConfig.Colors.textPrimary)
+
+                            ForEach(viewModel.conditionTimeline.suffix(3)) { entry in
+                                HStack(alignment: .top, spacing: 8) {
+                                    Circle()
+                                        .fill(AppConfig.Colors.softAccent)
+                                        .frame(width: 8, height: 8)
+                                        .padding(.top, 5)
+
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(viewModel.prettyStage(entry.stage))
+                                            .font(AppConfig.Fonts.smallBold)
+                                            .foregroundColor(AppConfig.Colors.textPrimary)
+                                        if let note = entry.note, !note.isEmpty {
+                                            Text(note)
+                                                .font(AppConfig.Fonts.small)
+                                                .foregroundColor(AppConfig.Colors.textSecondary)
+                                                .lineLimit(2)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 } else {
                     // Pending — searching
                     VStack(spacing: 10) {
@@ -288,7 +415,7 @@ struct CitizenMapView: View {
         //                .fill(AppConfig.Colors.card)
         //                .shadow(color: .black.opacity(0.1), radius: AppConfig.UI.cardShadowRadius, y: -AppConfig.UI.cardShadowOffsetY)
         //        )
-        .glassEffect(.clear, in: .rect(cornerRadius: AppConfig.UI.cornerRadius))
+        .glassEffect(.regular, in: .rect(cornerRadius: AppConfig.UI.cornerRadius))
         .tint(AppConfig.Colors.card)
         .padding(.horizontal, 12)
         .padding(.bottom, 8)
@@ -320,7 +447,7 @@ struct CitizenMapView: View {
         //                    color: .black.opacity(0.08), radius: AppConfig.UI.cardShadowRadius,
         //                    y: -AppConfig.UI.cardShadowOffsetY)
         //        )
-        .glassEffect( .clear, in: .rect(cornerRadius: AppConfig.UI.cornerRadius))
+        .glassEffect(.regular, in: .rect(cornerRadius: AppConfig.UI.cornerRadius))
         .tint(AppConfig.Colors.card)
         .padding(.horizontal, 12)
         .padding(.bottom, 8)
@@ -341,7 +468,7 @@ struct CitizenMapView: View {
         let mapItem = MKMapItem(placemark: placemark)
         mapItem.name = name
         mapItem.openInMaps(launchOptions: [
-            MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeDriving
+            MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeDriving,
         ])
     }
 }
@@ -645,8 +772,7 @@ struct RescuerDetailSheet: View {
     }
 
     private func detailRow(icon: String, title: String, value: String, valueColor: Color? = nil)
-        -> some View
-    {
+        -> some View {
         HStack {
             Label(title, systemImage: icon)
                 .font(AppConfig.Fonts.body)

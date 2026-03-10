@@ -3,6 +3,12 @@ import CoreLocation
 import Foundation
 import MapKit
 
+struct RescuerHeatmapPoint: Identifiable {
+    let id: String
+    let coordinate: CLLocationCoordinate2D
+    let weight: Int
+}
+
 struct NearbyVetPlace: Identifiable {
     let id: String
     let name: String
@@ -19,6 +25,8 @@ class RescuerMapViewModel: NSObject, ObservableObject, CLLocationManagerDelegate
     @Published var activeRescueId: String? = nil
     @Published var wsConnected = false
     @Published var nearbyVetPlaces: [NearbyVetPlace] = []
+    @Published var heatmapPoints: [RescuerHeatmapPoint] = []
+    @Published var isHeatmapEnabled = false
 
     private let locationManager = CLLocationManager()
     private var locationTimer: Timer?
@@ -82,6 +90,8 @@ class RescuerMapViewModel: NSObject, ObservableObject, CLLocationManagerDelegate
             [weak self] _ in
             Task { @MainActor in self?.fetchPendingIncidents() }
         }
+
+        Task { await fetchHeatmapPoints() }
 
         // Refresh nearby vet places periodically.
         vetPlacesTimer?.invalidate()
@@ -381,6 +391,35 @@ class RescuerMapViewModel: NSObject, ObservableObject, CLLocationManagerDelegate
         } catch {
             print("Failed to accept incident: \(error)")
             return false
+        }
+    }
+
+    func fetchHeatmapPoints() async {
+        struct HeatmapResponse: Decodable {
+            let points: [HeatmapPointDTO]
+        }
+
+        struct HeatmapPointDTO: Decodable {
+            let lat: Double
+            let lng: Double
+            let weight: Int
+        }
+
+        do {
+            let result: HeatmapResponse = try await NetworkManager.shared.request(
+                endpoint: IncidentEndpoint.heatmap(limit: 500),
+                keyDecodingStrategy: .useDefaultKeys
+            )
+
+            heatmapPoints = result.points.enumerated().map { idx, point in
+                RescuerHeatmapPoint(
+                    id: "rescuer-heatmap-\(idx)-\(point.lat)-\(point.lng)",
+                    coordinate: CLLocationCoordinate2D(latitude: point.lat, longitude: point.lng),
+                    weight: point.weight
+                )
+            }
+        } catch {
+            print("Failed to load rescuer heatmap points: \(error)")
         }
     }
 }

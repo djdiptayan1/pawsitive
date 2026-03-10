@@ -11,7 +11,7 @@ import SwiftUI
 struct RescuerMapView: View {
     @StateObject private var viewModel = RescuerMapViewModel()
 
-    @State private var position: MapCameraPosition = .userLocation(fallback: .automatic)
+    @State private var position: MapCameraPosition = .userLocation(fallback: .region(MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: 13.0827, longitude: 80.2707), span: MKCoordinateSpan(latitudeDelta: 0.02, longitudeDelta: 0.02))))
     @State private var selectedIncident: RecentActivityModel? = nil
     @State private var selectedVetPlace: NearbyVetPlace?
     @State private var showAcceptAlert = false
@@ -19,9 +19,23 @@ struct RescuerMapView: View {
     @State private var showVetOptions = false
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            Map(position: $position) {
-                UserAnnotation()
+        NavigationStack {
+            ZStack(alignment: .bottom) {
+                Map(position: $position) {
+                    if viewModel.isHeatmapEnabled {
+                        ForEach(viewModel.heatmapPoints) { point in
+                            MapCircle(center: point.coordinate, radius: CLLocationDistance(Double(point.weight) * 160))
+                                .foregroundStyle(
+                                    point.weight >= 3
+                                        ? AppConfig.Colors.alert.opacity(0.24)
+                                        : point.weight == 2
+                                            ? AppConfig.Colors.warning.opacity(0.2)
+                                            : AppConfig.Colors.accent.opacity(0.16)
+                                )
+                        }
+                    }
+
+                    UserAnnotation()
 
                 ForEach(viewModel.nearbyVetPlaces) { place in
                     Annotation(place.name, coordinate: place.coordinate, anchor: .center) {
@@ -55,67 +69,77 @@ struct RescuerMapView: View {
                         }
                     }
                 }
-            }
-            .mapControls {
-                MapUserLocationButton()
-                MapCompass()
-                MapScaleView()
-            }
+                }
+                .mapControls {
+                    MapUserLocationButton()
+                    MapCompass()
+                    MapScaleView()
+                }
 
-            // Bottom status card
-            VStack {
-                Spacer()
+                // Bottom status card
+                VStack {
+                    Spacer()
 
-                if viewModel.isLoading && viewModel.pendingIncidents.isEmpty {
-                    statusCard {
-                        HStack(spacing: 12) {
-                            ProgressView()
-                                .tint(AppConfig.Colors.accent)
-                            Text("Loading incidents...")
-                                .font(AppConfig.Fonts.body)
-                                .foregroundColor(AppConfig.Colors.textPrimary)
+                    if viewModel.isLoading && viewModel.pendingIncidents.isEmpty {
+                        statusCard {
+                            HStack(spacing: 12) {
+                                ProgressView()
+                                    .tint(AppConfig.Colors.accent)
+                                Text("Loading incidents...")
+                                    .font(AppConfig.Fonts.body)
+                                    .foregroundColor(AppConfig.Colors.textPrimary)
+                            }
                         }
-                    }
-                } else if viewModel.pendingIncidents.isEmpty {
-                    statusCard {
-                        VStack(spacing: 8) {
-                            Image(systemName: "pawprint.fill")
-                                .font(.title2)
-                                .foregroundColor(AppConfig.Colors.accent)
-                            Text("No pending incidents")
+                    } else if viewModel.pendingIncidents.isEmpty {
+                        statusCard {
+                            VStack(spacing: 8) {
+                                Image(systemName: "pawprint.fill")
+                                    .font(.title2)
+                                    .foregroundColor(AppConfig.Colors.accent)
+                                Text("No pending incidents")
+                                    .font(AppConfig.Fonts.bodyBold)
+                                    .foregroundColor(AppConfig.Colors.textPrimary)
+                                Text("New SOS alerts will appear automatically")
+                                    .font(AppConfig.Fonts.small)
+                                    .foregroundColor(AppConfig.Colors.textSecondary)
+                            }
+                        }
+                    } else {
+                        statusCard {
+                            HStack {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundColor(AppConfig.Colors.alert)
+                                Text(
+                                    "\(viewModel.pendingIncidents.count) pending rescue\(viewModel.pendingIncidents.count == 1 ? "" : "s")"
+                                )
                                 .font(AppConfig.Fonts.bodyBold)
                                 .foregroundColor(AppConfig.Colors.textPrimary)
-                            Text("New SOS alerts will appear automatically")
-                                .font(AppConfig.Fonts.small)
-                                .foregroundColor(AppConfig.Colors.textSecondary)
-                        }
-                    }
-                } else {
-                    statusCard {
-                        HStack {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundColor(AppConfig.Colors.alert)
-                            Text(
-                                "\(viewModel.pendingIncidents.count) pending rescue\(viewModel.pendingIncidents.count == 1 ? "" : "s")"
-                            )
-                            .font(AppConfig.Fonts.bodyBold)
-                            .foregroundColor(AppConfig.Colors.textPrimary)
 
-                            Spacer()
+                                Spacer()
 
-                            Circle()
-                                .fill(
-                                    viewModel.wsConnected
-                                        ? AppConfig.Colors.success : AppConfig.Colors.alert
-                                )
-                                .frame(width: 8, height: 8)
-                            Text(viewModel.wsConnected ? "Live" : "Polling")
-                                .font(AppConfig.Fonts.small)
-                                .foregroundColor(AppConfig.Colors.textSecondary)
+                                Circle()
+                                    .fill(
+                                        viewModel.wsConnected
+                                            ? AppConfig.Colors.success : AppConfig.Colors.alert
+                                    )
+                                    .frame(width: 8, height: 8)
+                                Text(viewModel.wsConnected ? "Live" : "Polling")
+                                    .font(AppConfig.Fonts.small)
+                                    .foregroundColor(AppConfig.Colors.textSecondary)
+                            }
                         }
                     }
                 }
             }
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("heatmap", systemImage: viewModel.isHeatmapEnabled ? "flame.fill" : "flame") {
+                        viewModel.isHeatmapEnabled.toggle()
+                    }
+                    .accessibilityLabel("Toggle heatmap")
+                }
+            }
+            .navigationBarTitleDisplayMode(.inline)
         }
         .onAppear {
             viewModel.startMonitoring()
@@ -172,7 +196,7 @@ struct RescuerMapView: View {
             //                        radius: AppConfig.UI.cardShadowRadius,
             //                        y: -AppConfig.UI.cardShadowOffsetY)
             //            )
-            .glassEffect(.clear, in: .rect(cornerRadius: AppConfig.UI.cornerRadius))
+            .glassEffect(.regular, in: .rect(cornerRadius: AppConfig.UI.cornerRadius))
             .tint(AppConfig.Colors.card)
             .padding(.horizontal, 12)
             .padding(.bottom, 8)

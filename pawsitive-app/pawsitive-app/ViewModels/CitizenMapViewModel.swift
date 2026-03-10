@@ -19,6 +19,7 @@ struct ActiveIncident: Identifiable {
     let rescuerAvatarUrl: String?
     let ngoName: String?
     let ngoCity: String?
+    let witnessCount: Int
 
     var severityColor: String {
         switch severity.lowercased() {
@@ -27,6 +28,29 @@ struct ActiveIncident: Identifiable {
         default: return "Accent"
         }
     }
+}
+
+struct NearbyWitnessIncident: Identifiable {
+    let id: String
+    let title: String
+    let severity: String
+    let status: String
+    let witnessCount: Int
+    let coordinate: CLLocationCoordinate2D
+    let distanceMeters: Double
+}
+
+struct HeatmapPoint: Identifiable {
+    let id: String
+    let coordinate: CLLocationCoordinate2D
+    let weight: Int
+}
+
+struct ConditionLogEntry: Identifiable {
+    let id: String
+    let stage: String
+    let note: String?
+    let createdAt: String
 }
 
 struct NearbyRescuer: Identifiable {
@@ -65,6 +89,11 @@ class CitizenMapViewModel: ObservableObject {
     // Nearby rescuers (shown on map always)
     @Published var nearbyRescuers: [NearbyRescuer] = []
     @Published var nearbyVetPlaces: [NearbyVetPOI] = []
+    @Published var nearbyWitnessIncidents: [NearbyWitnessIncident] = []
+    @Published var heatmapPoints: [HeatmapPoint] = []
+    @Published var isHeatmapEnabled = false
+    @Published var conditionTimeline: [ConditionLogEntry] = []
+    @Published var witnessActionMessage: String?
 
     // WS status
     @Published var wsConnected = false
@@ -124,6 +153,7 @@ class CitizenMapViewModel: ObservableObject {
             let lat: Double?
             let lng: Double?
             let assignedRescuerId: String?
+            let witnessCount: Int?
             let rescuer: RescuerDTO?
 
             enum CodingKeys: String, CodingKey {
@@ -132,6 +162,7 @@ class CitizenMapViewModel: ObservableObject {
                 case locationName = "location_name"
                 case lat, lng
                 case assignedRescuerId = "assigned_rescuer_id"
+                case witnessCount = "witness_count"
                 case rescuer
             }
         }
@@ -179,21 +210,26 @@ class CitizenMapViewModel: ObservableObject {
                     rescuerId: dto.assignedRescuerId,
                     rescuerAvatarUrl: dto.rescuer?.avatarUrl,
                     ngoName: dto.rescuer?.ngo?.name,
-                    ngoCity: dto.rescuer?.ngo?.operatingCity
+                    ngoCity: dto.rescuer?.ngo?.operatingCity,
+                    witnessCount: dto.witnessCount ?? 0
                 )
 
                 let wasNil = activeIncident == nil
                 activeIncident = incident
 
-                // If rescue is active/dispatched and we have a rescuer, connect WS
-                if incident.status == "dispatched" || incident.status == "active",
-                   incident.rescuerId != nil {
-                    if !wsConnected { connectWebSocket(incidentId: incident.id) }
+                // Always join the incident room so we receive the "accepted" event the
+                // moment a rescuer claims the job — don't wait for the 10 s poll.
+                if !wsConnected { connectWebSocket(incidentId: incident.id) }
+
+                if (incident.status == "dispatched" || incident.status == "active")
+                    && incident.rescuerId != nil {
+                    await fetchConditionTimeline(incidentId: incident.id)
                 } else {
-                    disconnectWebSocket()
+                    // Still pending — clear any stale rescuer data
                     rescuerLocation = nil
                     route = nil
                     etaSeconds = nil
+                    conditionTimeline = []
                 }
 
                 // Center map on incident if first load
@@ -211,6 +247,7 @@ class CitizenMapViewModel: ObservableObject {
                 rescuerLocation = nil
                 route = nil
                 etaSeconds = nil
+                conditionTimeline = []
             }
         } catch {
             // Silent — map still shows user location
@@ -306,8 +343,12 @@ class CitizenMapViewModel: ObservableObject {
             [weak self] _ in
             Task {
                 await self?.fetchNearbyRescuersIfNeeded()
+                await self?.fetchNearbyActiveIncidents()
             }
         }
+
+        Task { await fetchNearbyActiveIncidents() }
+        Task { await fetchHeatmapPoints() }
 
         // Refresh nearby vet clinics/hospitals every minute.
         Task { await fetchNearbyVetPlaces() }
@@ -333,6 +374,90 @@ class CitizenMapViewModel: ObservableObject {
     private func fetchNearbyRescuersIfNeeded() async {
         print("🔄 [Nearby Check] Fetching nearby rescuers...")
         await fetchNearbyRescuers()
+    }
+
+    func fetchNearbyActiveIncidents() async {
+        guard activeIncident == nil,
+              let token = KeychainManager.shared.getString(key: .accessToken),
+              let userLoc = userLocation else {
+            nearbyWitnessIncidents = []
+            return
+        }
+
+        struct NearbyResponse: Decodable {
+            let incidents: [NearbyIncidentDTO]
+        }
+
+        struct NearbyIncidentDTO: Decodable {
+            let id: String
+            let title: String
+            let severity: String
+            let status: String
+            let witnessCount: Int?
+            let lat: Double
+            let lng: Double
+            let distanceMeters: Double?
+
+            enum CodingKeys: String, CodingKey {
+                case id, title, severity, status, lat, lng
+                case witnessCount = "witness_count"
+                case distanceMeters = "distance_meters"
+            }
+        }
+
+        do {
+            let result: NearbyResponse = try await NetworkManager.shared.request(
+                endpoint: IncidentEndpoint.nearbyActiveIncidents(
+                    token: token,
+                    lat: userLoc.latitude,
+                    lng: userLoc.longitude,
+                    radius: 1500
+                ),
+                keyDecodingStrategy: .useDefaultKeys
+            )
+
+            nearbyWitnessIncidents = result.incidents.map { dto in
+                NearbyWitnessIncident(
+                    id: dto.id,
+                    title: dto.title,
+                    severity: dto.severity,
+                    status: dto.status,
+                    witnessCount: dto.witnessCount ?? 0,
+                    coordinate: CLLocationCoordinate2D(latitude: dto.lat, longitude: dto.lng),
+                    distanceMeters: dto.distanceMeters ?? 0
+                )
+            }
+        } catch {
+            print("Failed to load nearby active incidents: \(error)")
+        }
+    }
+
+    func fetchHeatmapPoints() async {
+        struct HeatmapResponse: Decodable {
+            let points: [HeatmapPointDTO]
+        }
+
+        struct HeatmapPointDTO: Decodable {
+            let lat: Double
+            let lng: Double
+            let weight: Int
+        }
+
+        do {
+            let result: HeatmapResponse = try await NetworkManager.shared.request(
+                endpoint: IncidentEndpoint.heatmap(limit: 500),
+                keyDecodingStrategy: .useDefaultKeys
+            )
+            heatmapPoints = result.points.enumerated().map { idx, point in
+                HeatmapPoint(
+                    id: "heatmap-\(idx)-\(point.lat)-\(point.lng)",
+                    coordinate: CLLocationCoordinate2D(latitude: point.lat, longitude: point.lng),
+                    weight: point.weight
+                )
+            }
+        } catch {
+            print("Failed to load heatmap points: \(error)")
+        }
     }
 
     // MARK: - Native POI Search (Vet / Pet Clinics)
@@ -446,8 +571,13 @@ class CitizenMapViewModel: ObservableObject {
             let etaSeconds: Int?
             let rescuerId: String?
             let rescuerName: String?
+            let severity: String?
             let rescuePhotoUrl: String? // NEW — for proof of rescue
             let dropOffType: String?
+            let witnessCount: Int?
+            let stage: String?
+            let note: String?
+            let createdAt: String?
             let notification: WSNotification?
 
             struct WSNotification: Decodable {
@@ -477,6 +607,40 @@ class CitizenMapViewModel: ObservableObject {
                     LocalNotificationService.shared.fire(title: n.title, body: n.body)
                 }
                 await self.fetchActiveIncident()
+                if let incidentId = self.activeIncident?.id {
+                    await self.fetchConditionTimeline(incidentId: incidentId)
+                }
+
+            case "condition_update":
+                if let n = msg.notification {
+                    LocalNotificationService.shared.fire(title: n.title, body: n.body)
+                }
+                if let incidentId = self.activeIncident?.id {
+                    await self.fetchConditionTimeline(incidentId: incidentId)
+                }
+
+            case "witness_update":
+                if let count = msg.witnessCount, var incident = self.activeIncident {
+                    incident = ActiveIncident(
+                        id: incident.id,
+                        title: incident.title,
+                        status: incident.status,
+                        severity: msg.severity ?? incident.severity,
+                        photoUrl: incident.photoUrl,
+                        locationName: incident.locationName,
+                        coordinate: incident.coordinate,
+                        rescuerName: incident.rescuerName,
+                        rescuerId: incident.rescuerId,
+                        rescuerAvatarUrl: incident.rescuerAvatarUrl,
+                        ngoName: incident.ngoName,
+                        ngoCity: incident.ngoCity,
+                        witnessCount: count
+                    )
+                    self.activeIncident = incident
+                }
+                if let n = msg.notification {
+                    LocalNotificationService.shared.fire(title: n.title, body: n.body)
+                }
 
             case "rescued":
                 // Incident resolved
@@ -496,6 +660,89 @@ class CitizenMapViewModel: ObservableObject {
             default:
                 break
             }
+        }
+    }
+
+    func submitWitnessReport(incident: NearbyWitnessIncident, severity: UrgencySeverity) async {
+        guard let token = KeychainManager.shared.getString(key: .accessToken) else { return }
+
+        struct WitnessResponse: Decodable {
+            let result: WitnessResult
+        }
+
+        struct WitnessResult: Decodable {
+            let alreadyWitnessed: Bool
+            let witnessCount: Int?
+
+            enum CodingKeys: String, CodingKey {
+                case alreadyWitnessed = "alreadyWitnessed"
+                case witnessCount = "witnessCount"
+            }
+        }
+
+        do {
+            let result: WitnessResponse = try await NetworkManager.shared.request(
+                endpoint: IncidentEndpoint.witnessIncident(token: token, id: incident.id, severity: severity.rawValue),
+                keyDecodingStrategy: .useDefaultKeys
+            )
+
+            if result.result.alreadyWitnessed {
+                witnessActionMessage = "You already confirmed this incident."
+            } else {
+                let count = result.result.witnessCount ?? (incident.witnessCount + 1)
+                witnessActionMessage = "Thanks. \(count) witnesses have confirmed this case."
+            }
+
+            await fetchNearbyActiveIncidents()
+            await fetchHeatmapPoints()
+        } catch {
+            witnessActionMessage = "Could not submit your witness confirmation."
+            print("Witness submit failed: \(error)")
+        }
+    }
+
+    func fetchConditionTimeline(incidentId: String) async {
+        guard let token = KeychainManager.shared.getString(key: .accessToken) else { return }
+
+        struct ConditionResponse: Decodable {
+            let entries: [ConditionEntryDTO]
+        }
+
+        struct ConditionEntryDTO: Decodable {
+            let id: String
+            let stage: String
+            let note: String?
+            let createdAt: String
+
+            enum CodingKeys: String, CodingKey {
+                case id, stage, note
+                case createdAt = "created_at"
+            }
+        }
+
+        do {
+            let result: ConditionResponse = try await NetworkManager.shared.request(
+                endpoint: IncidentEndpoint.getConditionLog(token: token, id: incidentId),
+                keyDecodingStrategy: .useDefaultKeys
+            )
+
+            conditionTimeline = result.entries.map {
+                ConditionLogEntry(id: $0.id, stage: $0.stage, note: $0.note, createdAt: $0.createdAt)
+            }
+        } catch {
+            print("Failed to fetch condition timeline: \(error)")
+        }
+    }
+
+    func prettyStage(_ stage: String) -> String {
+        switch stage {
+        case "en_route": return "En Route"
+        case "on_scene": return "On Scene"
+        case "first_aid": return "First Aid"
+        case "in_transport": return "In Transport"
+        case "at_vet": return "At Vet"
+        case "recovered": return "Recovered"
+        default: return stage.replacingOccurrences(of: "_", with: " ").capitalized
         }
     }
 

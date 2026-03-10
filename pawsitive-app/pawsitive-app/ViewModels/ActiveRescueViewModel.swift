@@ -13,6 +13,43 @@ import UIKit
 
 @MainActor
 class ActiveRescueViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
+    struct ConditionEntry: Identifiable {
+        let id: String
+        let stage: String
+        let note: String?
+        let createdAt: String
+    }
+
+    enum RescueStage: String, CaseIterable, Identifiable {
+        case enRoute = "en_route"
+        case onScene = "on_scene"
+        case firstAid = "first_aid"
+        case inTransport = "in_transport"
+        case atVet = "at_vet"
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .enRoute: return "En Route"
+            case .onScene: return "On Scene"
+            case .firstAid: return "First Aid"
+            case .inTransport: return "In Transport"
+            case .atVet: return "At Vet"
+            }
+        }
+
+        var icon: String {
+            switch self {
+            case .enRoute: return "🚗"
+            case .onScene: return "📍"
+            case .firstAid: return "🩹"
+            case .inTransport: return "🚑"
+            case .atVet: return "🏥"
+            }
+        }
+    }
+
     struct NearbyVetPOI: Identifiable {
         let id: String
         let name: String
@@ -27,6 +64,8 @@ class ActiveRescueViewModel: NSObject, ObservableObject, CLLocationManagerDelega
     @Published var completeSuccess = false
     @Published var route: MKRoute? = nil
     @Published var nearbyVetPlaces: [NearbyVetPOI] = []
+    @Published var conditionEntries: [ConditionEntry] = []
+    @Published var isPostingConditionUpdate = false
     
     // Proof of Rescue State
     @Published var pickedImage: UIImage? = nil
@@ -234,9 +273,11 @@ class ActiveRescueViewModel: NSObject, ObservableObject, CLLocationManagerDelega
                     } else if let userLoc = CLLocationManager().location?.coordinate {
                         calculateRoute(from: userLoc, to: rescue.coordinate)
                     }
+                    await fetchConditionTimeline(incidentId: rescue.id)
                 } else {
                     activeRescue = nil
                     route = nil
+                    conditionEntries = []
                 }
             } catch {
                 if activeRescue == nil {
@@ -292,6 +333,87 @@ class ActiveRescueViewModel: NSObject, ObservableObject, CLLocationManagerDelega
         }
         isLoading = false
         showCompleteAlert = true
+    }
+
+    func fetchConditionTimeline(incidentId: String) async {
+        guard let token = KeychainManager.shared.getString(key: .accessToken) else { return }
+
+        struct Response: Decodable {
+            let entries: [EntryDTO]
+        }
+
+        struct EntryDTO: Decodable {
+            let id: String
+            let stage: String
+            let note: String?
+            let createdAt: String
+
+            enum CodingKeys: String, CodingKey {
+                case id, stage, note
+                case createdAt = "created_at"
+            }
+        }
+
+        do {
+            let response: Response = try await NetworkManager.shared.request(
+                endpoint: IncidentEndpoint.getConditionLog(token: token, id: incidentId),
+                keyDecodingStrategy: .useDefaultKeys
+            )
+
+            conditionEntries = response.entries.map {
+                ConditionEntry(id: $0.id, stage: $0.stage, note: $0.note, createdAt: $0.createdAt)
+            }
+        } catch {
+            print("Failed to fetch rescue condition timeline: \(error)")
+        }
+    }
+
+    func postConditionUpdate(stage: RescueStage, note: String?) async {
+        guard let rescueId = activeRescue?.id,
+              let token = KeychainManager.shared.getString(key: .accessToken) else { return }
+
+        isPostingConditionUpdate = true
+        defer { isPostingConditionUpdate = false }
+
+        do {
+            struct UpdateResponse: Decodable {
+                let entry: EntryDTO
+            }
+
+            struct EntryDTO: Decodable {
+                let id: String
+            }
+
+            let _: UpdateResponse = try await NetworkManager.shared.request(
+                endpoint: IncidentEndpoint.postConditionLog(
+                    token: token,
+                    id: rescueId,
+                    stage: stage.rawValue,
+                    note: note?.isEmpty == true ? nil : note
+                ),
+                keyDecodingStrategy: .useDefaultKeys
+            )
+
+            await fetchConditionTimeline(incidentId: rescueId)
+            LocalNotificationService.shared.fire(
+                title: "Condition updated",
+                body: "\(stage.icon) \(stage.title) has been shared with the citizen."
+            )
+        } catch {
+            print("Failed to post condition update: \(error)")
+        }
+    }
+
+    func stageLabel(_ rawStage: String) -> String {
+        switch rawStage {
+        case "en_route": return "En Route"
+        case "on_scene": return "On Scene"
+        case "first_aid": return "First Aid"
+        case "in_transport": return "In Transport"
+        case "at_vet": return "At Vet"
+        case "recovered": return "Recovered"
+        default: return rawStage.replacingOccurrences(of: "_", with: " ").capitalized
+        }
     }
 
     func uploadRescuePhoto(_ image: UIImage) async -> String? {

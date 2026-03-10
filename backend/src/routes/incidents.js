@@ -1,6 +1,21 @@
 import { Router } from 'express';
 import { requireAuth, requireRole } from '../middleware/auth.js';
-import { reportIncident, getPendingIncidents, getIncidentById, getIncidentsByReporter, getIncidentsByRescuer, getActiveIncidentForCitizen, getActiveRescueForRescuer, acceptIncidentAssignment, completeIncidentAssignment } from '../services/incident.js';
+import {
+    reportIncident,
+    getPendingIncidents,
+    getIncidentById,
+    getIncidentsByReporter,
+    getIncidentsByRescuer,
+    getActiveIncidentForCitizen,
+    getActiveRescueForRescuer,
+    acceptIncidentAssignment,
+    completeIncidentAssignment,
+    getNearbyActiveIncidents,
+    submitWitnessReport,
+    getHeatmapPoints,
+    listConditionLog,
+    postConditionLog,
+} from '../services/incident.js';
 
 const router = Router();
 
@@ -46,6 +61,37 @@ router.get('/active', requireAuth, async (req, res, next) => {
     }
 });
 
+// GET /incidents/nearby-active?lat=&lng=&radius= — active incidents for witness flow
+router.get('/nearby-active', requireAuth, async (req, res, next) => {
+    try {
+        const { lat, lng, radius } = req.query;
+        if (!lat || !lng) {
+            return res.status(400).json({ error: 'lat and lng query params required' });
+        }
+
+        const incidents = await getNearbyActiveIncidents(
+            parseFloat(lat),
+            parseFloat(lng),
+            parseFloat(radius) || 1500
+        );
+
+        res.json({ incidents });
+    } catch (err) {
+        next(err);
+    }
+});
+
+// GET /incidents/heatmap — lightweight incident intensity points
+router.get('/heatmap', async (req, res, next) => {
+    try {
+        const limit = Math.min(parseInt(req.query.limit, 10) || 500, 1000);
+        const points = await getHeatmapPoints(limit);
+        res.json({ points });
+    } catch (err) {
+        next(err);
+    }
+});
+
 // GET /incidents/my-rescues — rescuer's full rescue history
 router.get('/my-rescues', requireAuth, async (req, res, next) => {
     try {
@@ -82,6 +128,53 @@ router.get('/:id', requireAuth, async (req, res, next) => {
         const incident = await getIncidentById(req.params.id);
         res.json({ incident });
     } catch (err) {
+        next(err);
+    }
+});
+
+// GET /incidents/:id/condition-log — citizen + rescuer timeline feed
+router.get('/:id/condition-log', requireAuth, async (req, res, next) => {
+    try {
+        const entries = await listConditionLog(req.params.id);
+        res.json({ entries });
+    } catch (err) {
+        next(err);
+    }
+});
+
+// POST /incidents/:id/condition-log — assigned rescuer stage update
+router.post('/:id/condition-log', requireAuth, requireRole('rescuer'), async (req, res, next) => {
+    try {
+        const { stage, note, photoUrl } = req.body;
+
+        if (!stage) {
+            return res.status(400).json({ error: 'stage is required' });
+        }
+
+        const entry = await postConditionLog({
+            incidentId: req.params.id,
+            rescuerId: req.user.id,
+            stage,
+            note,
+            photoUrl,
+        });
+
+        res.status(201).json({ entry });
+    } catch (err) {
+        next(err);
+    }
+});
+
+// POST /incidents/:id/witness — citizen confirms an existing nearby case
+router.post('/:id/witness', requireAuth, requireRole('citizen'), async (req, res, next) => {
+    try {
+        const { severity } = req.body;
+        const result = await submitWitnessReport(req.params.id, req.user.id, severity || 'Minor');
+        res.json({ result });
+    } catch (err) {
+        if (err.message === 'Incident not found or no longer active') {
+            return res.status(404).json({ error: err.message });
+        }
         next(err);
     }
 });

@@ -30,7 +30,10 @@ final class SOSViewModel: ObservableObject {
     @Published var incidentTitle: String = ""
     @Published var isSubmitting = false
     @Published var submissionError: String? = nil
-    @Published var showSuccessAlert = false
+    @Published var showSuccessPopup = false
+    @Published var showFirstAidGuide = false
+    @Published var shouldOfferFirstAidAfterSuccess = true
+    @Published var lastSubmittedSeverity: UrgencySeverity = .moderate
 
     private let networkManager = NetworkManager.shared
 
@@ -125,7 +128,9 @@ final class SOSViewModel: ObservableObject {
             )
 
             isSubmitting = false
-            showSuccessAlert = true
+            lastSubmittedSeverity = severity
+            showSuccessPopup = true
+            showFirstAidGuide = false
             selectedSeverity = nil
             incidentTitle = ""
 
