@@ -7,6 +7,9 @@ import UIKit
 @MainActor
 class CitizenProfileViewModel: BaseProfileViewModel {
 
+    @Published var reportsFiled: Int = 0
+    @Published var animalsHelped: Int = 0
+
     override init(sessionVM: SessionViewModel) {
         super.init(sessionVM: sessionVM)
 
@@ -49,6 +52,9 @@ class CitizenProfileViewModel: BaseProfileViewModel {
                 let totalReports = result.user.reportsFiled ?? 0
                 let activeReports = result.user.activeReports ?? 0
                 let animalsHelped = result.user.animalsHelped ?? 0
+
+                self.reportsFiled = totalReports
+                self.animalsHelped = animalsHelped
 
                 self.impactStats = [
                     ImpactStat(

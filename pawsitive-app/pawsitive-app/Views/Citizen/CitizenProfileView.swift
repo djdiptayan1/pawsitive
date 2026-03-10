@@ -115,6 +115,9 @@ struct CitizenProfileView: View {
                         }
                         .padding(.horizontal, AppConfig.UI.screenPadding)
 
+                        // MARK: - Badges
+                        badgesSection
+
                         Spacer(minLength: 24)
 
                         // MARK: - Sign Out
@@ -153,6 +156,103 @@ struct CitizenProfileView: View {
             }
         }
     }
+
+    // MARK: - Badges Section
+
+    @ViewBuilder
+    private var badgesSection: some View {
+        let badges: [(emoji: String, title: String, subtitle: String, isEarned: Bool)] = [
+            ("📱", "First Report", "File 1 report", viewModel.reportsFiled >= 1),
+            ("🐾", "Animal Friend", "Help rescue 1 animal", viewModel.animalsHelped >= 1),
+            ("📋", "Active Reporter", "File 5 reports", viewModel.reportsFiled >= 5),
+            ("🦸", "Community Hero", "Help rescue 5 animals", viewModel.animalsHelped >= 5),
+            ("🌟", "Pawsitive Star", "File 10 reports", viewModel.reportsFiled >= 10),
+            ("🏆", "Guardian Angel", "Help rescue 10 animals", viewModel.animalsHelped >= 10),
+        ]
+
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("Badges")
+                    .font(AppConfig.Fonts.headline)
+                    .foregroundColor(AppConfig.Colors.textPrimary)
+                Spacer()
+            }
+            .padding(.horizontal, AppConfig.UI.screenPadding)
+
+            let columns = [
+                GridItem(.flexible(), spacing: 12),
+                GridItem(.flexible(), spacing: 12),
+                GridItem(.flexible(), spacing: 12),
+            ]
+
+            LazyVGrid(columns: columns, spacing: 16) {
+                ForEach(Array(badges.enumerated()), id: \.offset) { _, badge in
+                    citizenBadgeItem(
+                        emoji: badge.emoji,
+                        title: badge.title,
+                        subtitle: badge.subtitle,
+                        isEarned: badge.isEarned
+                    )
+                }
+            }
+            .padding(.horizontal, AppConfig.UI.screenPadding)
+        }
+    }
+
+    @ViewBuilder
+    private func citizenBadgeItem(emoji: String, title: String, subtitle: String, isEarned: Bool)
+        -> some View
+    {
+        VStack(spacing: 8) {
+            ZStack {
+                Circle()
+                    .fill(
+                        isEarned
+                            ? AppConfig.Colors.accent.opacity(0.15)
+                            : Color.gray.opacity(0.08)
+                    )
+                    .frame(width: 56, height: 56)
+
+                Text(emoji)
+                    .font(.system(size: 26))
+                    .opacity(isEarned ? 1.0 : 0.3)
+                    .grayscale(isEarned ? 0.0 : 1.0)
+            }
+
+            VStack(spacing: 2) {
+                Text(title)
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .foregroundColor(
+                        isEarned ? AppConfig.Colors.textPrimary : AppConfig.Colors.textSecondary
+                    )
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+
+                Text(subtitle)
+                    .font(.system(size: 10, weight: .regular, design: .rounded))
+                    .foregroundColor(AppConfig.Colors.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 14)
+        .padding(.horizontal, 4)
+        .background(AppConfig.Colors.card)
+        .cornerRadius(AppConfig.UI.cornerRadius)
+        .shadow(
+            color: Color.black.opacity(isEarned ? 0.06 : 0.02),
+            radius: AppConfig.UI.cardShadowRadius, x: 0,
+            y: AppConfig.UI.cardShadowOffsetY)
+        .overlay(
+            RoundedRectangle(cornerRadius: AppConfig.UI.cornerRadius)
+                .stroke(
+                    isEarned ? AppConfig.Colors.accent.opacity(0.3) : Color.clear,
+                    lineWidth: 1.5)
+        )
+    }
+
+    // MARK: - Avatar View
 
     @ViewBuilder
     private var avatarView: some View {
