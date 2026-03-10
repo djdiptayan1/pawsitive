@@ -149,6 +149,28 @@ export async function logLocationHistory(incidentId, rescuerId, lat, lng) {
     });
 }
 
+// Fetch full location history for a completed rescue (for replay)
+export async function getLocationHistory(incidentId) {
+    const { data, error } = await supabase
+        .from('rescue_location_history')
+        .select('id, rescuer_id, location, created_at')
+        .eq('incident_id', incidentId)
+        .order('created_at', { ascending: true });
+
+    if (error) throw new Error(`Failed to fetch location history: ${error.message}`);
+
+    return (data || []).map(point => {
+        const coords = parseGeoLocation(point.location);
+        return {
+            id: point.id,
+            rescuerId: point.rescuer_id,
+            lat: coords?.lat || null,
+            lng: coords?.lng || null,
+            createdAt: point.created_at,
+        };
+    }).filter(p => p.lat !== null);
+}
+
 // Handle incoming location update from a rescuer
 export async function updateRescuerLocation(rescuerId, lat, lng, incidentId, eta) {
     // Upsert to active_rescuers_location (PostGIS)

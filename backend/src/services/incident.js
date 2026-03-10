@@ -2,6 +2,7 @@ import { supabase } from '../db/supabase.js';
 import { startProgressiveDispatch, atomicAcceptIncident } from './dispatch.js';
 import { broadcastToIncidentRoom } from '../ws/trackingServer.js';
 import { resolveLocationNames, parseGeoLocation } from './location.js';
+import { awardCredits } from './credits.js';
 
 const ACTIVE_INCIDENT_STATUSES = ['pending', 'dispatched', 'active'];
 
@@ -378,7 +379,31 @@ export async function completeIncident(incidentId, rescuerId, rescuePhotoUrl, dr
 }
 
 export async function completeIncidentAssignment(incidentId, rescuerId, rescuePhotoUrl, dropOffType) {
+    // Fetch incident details for credit calculation before completing
+    let severity = 'Minor';
+    let responseMinutes = 10;
+    try {
+        const { data: incident } = await supabase
+            .from('incidents')
+            .select('severity, created_at, updated_at')
+            .eq('id', incidentId)
+            .single();
+        if (incident) {
+            severity = incident.severity || 'Minor';
+            const created = new Date(incident.created_at);
+            const now = new Date();
+            responseMinutes = Math.max(1, Math.round((now - created) / 60000));
+        }
+    } catch (err) {
+        console.error('⚠️ [Credits] Could not fetch incident for credit calc:', err.message);
+    }
+
     const result = await completeIncident(incidentId, rescuerId, rescuePhotoUrl, dropOffType);
+
+    // Award Pawsitive Credits (non-blocking, best-effort)
+    awardCredits(incidentId, rescuerId, severity, responseMinutes, 0).catch(err => {
+        console.error('⚠️ [Credits] Failed to award credits:', err.message);
+    });
 
     broadcastToIncidentRoom(incidentId, {
         type: 'rescued',
