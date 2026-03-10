@@ -153,9 +153,9 @@ export async function logLocationHistory(incidentId, rescuerId, lat, lng) {
 export async function getLocationHistory(incidentId) {
     const { data, error } = await supabase
         .from('rescue_location_history')
-        .select('id, rescuer_id, location, created_at')
+        .select('id, rescuer_id, location, recorded_at')
         .eq('incident_id', incidentId)
-        .order('created_at', { ascending: true });
+        .order('recorded_at', { ascending: true });
 
     if (error) throw new Error(`Failed to fetch location history: ${error.message}`);
 
@@ -166,7 +166,7 @@ export async function getLocationHistory(incidentId) {
             rescuerId: point.rescuer_id,
             lat: coords?.lat || null,
             lng: coords?.lng || null,
-            createdAt: point.created_at,
+            createdAt: point.recorded_at,
         };
     }).filter(p => p.lat !== null);
 }

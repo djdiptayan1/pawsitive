@@ -8,6 +8,7 @@
 import Foundation
 import Supabase
 import SwiftUI
+import Combine
 
 struct CreditEntry: Codable, Identifiable {
     let id: String
