@@ -21,12 +21,15 @@ export function setupTrackingWS(wss) {
 
         // --- Rescuer registers as available ---
         if (role === 'rescuer') {
-            rescuerClients.set(userId, ws);
-            console.log(`✅ Rescuer online: ${userId} (total: ${rescuerClients.size})`);
+            // Normalise UUID to lowercase to prevent case-mismatch with Supabase UUIDs
+            const normalisedId = userId.toLowerCase();
+            rescuerClients.set(normalisedId, ws);
+            console.log(`✅ Rescuer online: ${normalisedId} (total: ${rescuerClients.size})`);
+            console.log(`📋 All online rescuers: [${[...rescuerClients.keys()].join(', ')}]`);
 
             ws.on('close', () => {
-                rescuerClients.delete(userId);
-                console.log(`⬇️  Rescuer offline: ${userId}`);
+                rescuerClients.delete(normalisedId);
+                console.log(`⬇️  Rescuer offline: ${normalisedId}`);
             });
         }
 
@@ -50,26 +53,65 @@ export function setupTrackingWS(wss) {
     });
 }
 
-// Broadcast SOS to specific rescuer IDs (called from POST /incidents)
+// Broadcast SOS to specific rescuer IDs (called from dispatch.js)
+// Falls back to broadcast-all if no specific IDs match (GPS not yet pinged)
 export function broadcastToRescuers(rescuerIds, payload) {
     const message = JSON.stringify(payload);
     let sent = 0;
-    rescuerIds.forEach(id => {
+
+    // Normalise all IDs to lowercase before lookup
+    const normalisedIds = rescuerIds.map(id => id.toLowerCase());
+
+    console.log(`📡 Attempting broadcast to ${normalisedIds.length} rescuer(s): [${normalisedIds.join(', ')}]`);
+    console.log(`📋 Currently connected rescuers: [${[...rescuerClients.keys()].join(', ')}]`);
+
+    normalisedIds.forEach(id => {
         const ws = rescuerClients.get(id);
         if (ws?.readyState === 1) {   // 1 = OPEN
             ws.send(message);
             sent++;
+            console.log(`   ✅ Sent to rescuer: ${id}`);
+        } else {
+            console.log(`   ⚠️  Rescuer ${id} not connected or WS not open (ws=${ws?.readyState})`);
         }
     });
-    console.log(`📡 SOS broadcast: ${sent}/${rescuerIds.length} rescuers reached`);
+
+    console.log(`📡 SOS broadcast result: ${sent}/${normalisedIds.length} rescuers reached via targeted dispatch`);
+
+    // FALLBACK: If nobody was reached AND there are online rescuers, broadcast to ALL
+    // This handles the case where a rescuer is online but hasn't posted GPS yet
+    if (sent === 0 && rescuerClients.size > 0) {
+        console.log(`⚠️  FALLBACK: No targeted rescuers reached. Broadcasting to ALL ${rescuerClients.size} online rescuers.`);
+        rescuerClients.forEach((ws, id) => {
+            if (ws.readyState === 1) {
+                ws.send(message);
+                sent++;
+                console.log(`   📣 Fallback sent to: ${id}`);
+            }
+        });
+        console.log(`📡 Fallback broadcast complete: ${sent} rescuers notified`);
+    }
 }
 
 // Relay message to everyone in an incident room (called from routes)
 export function broadcastToIncidentRoom(incidentId, payload) {
     const room = incidentRooms.get(incidentId);
-    if (!room) return;
+    if (!room) {
+        console.log(`⚠️  No incident room found for: ${incidentId}`);
+        return;
+    }
     const message = JSON.stringify(payload);
+    let sent = 0;
     room.forEach(ws => {
-        if (ws.readyState === 1) ws.send(message);
+        if (ws.readyState === 1) {
+            ws.send(message);
+            sent++;
+        }
     });
+    console.log(`📡 Incident room ${incidentId}: relayed to ${sent}/${room.size} members`);
+}
+
+// Exported for debugging — get count of online rescuers
+export function getOnlineRescuerCount() {
+    return rescuerClients.size;
 }

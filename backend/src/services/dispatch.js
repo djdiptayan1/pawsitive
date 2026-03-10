@@ -1,5 +1,5 @@
 import { supabase } from '../db/supabase.js';
-import { broadcastToRescuers } from '../ws/trackingServer.js';
+import { broadcastToRescuers, getOnlineRescuerCount } from '../ws/trackingServer.js';
 
 // Ring config mirrors the DB table (cached here to avoid repeated queries)
 const RING_CONFIG = {
@@ -15,30 +15,43 @@ export async function startProgressiveDispatch(incident) {
     const rings = RING_CONFIG[severity] || RING_CONFIG['Moderate'];
     const ring1 = rings[0];
 
+    console.log(`🚀 [Dispatch] Starting for incident ${id} (${severity}) @ (${geo_location_lat}, ${geo_location_lng})`);
+    console.log(`   Ring 1 radius: ${ring1.radius}m`);
+
     // Broadcast ring 1
     const rescuers = await findRescuersInRadius(
         geo_location_lat, geo_location_lng, ring1.radius
     );
 
+    console.log(`   Found ${rescuers.length} rescuers in Ring 1 (${ring1.radius}m)`);
+    console.log(`   Online rescuers in WS: ${getOnlineRescuerCount()}`);
+
+    const payload = {
+        type: 'new_incident',
+        incidentId: id,
+        severity,
+        lat: geo_location_lat,
+        lng: geo_location_lng,
+        notification: {
+            title: `🐾 ${severity} animal nearby!`,
+            body: `A ${severity.toLowerCase()} animal needs help. Tap to respond.`
+        }
+    };
+
     if (rescuers.length > 0) {
         const ids = rescuers.map(r => r.rescuer_id);
-        broadcastToRescuers(ids, {
-            type: 'new_incident',
-            incidentId: id,
-            severity,
-            lat: geo_location_lat,
-            lng: geo_location_lng,
-            notification: {
-                title: `🐾 ${severity} animal nearby!`,
-                body: `A ${severity.toLowerCase()} case reported. Tap to respond.`
-            }
-        });
+        broadcastToRescuers(ids, payload);
 
         // Track who was already notified
         await supabase
             .from('incidents')
             .update({ notified_rescuers: ids, last_broadcast_at: new Date().toISOString() })
             .eq('id', id);
+    } else {
+        // No rescuers in PostGIS radius (likely haven't pinged GPS yet)
+        // Pass empty array — broadcastToRescuers will fallback to broadcast-all
+        console.log(`⚠️  [Dispatch] No rescuers in PostGIS radius. Triggering broadcast-all fallback.`);
+        broadcastToRescuers([], payload);
     }
 
     // Schedule ring 2, ring 3 expansions
@@ -68,20 +81,25 @@ function scheduleRingExpansion(incidentId, severity, lat, lng, currentRing, ring
             nextRingConfig.radius // outer boundary — newly in range
         );
 
+        const payload = {
+            type: 'new_incident',
+            incidentId,
+            severity,
+            lat, lng,
+            ring: nextRingConfig.ring,
+            notification: {
+                title: `🐾 ${severity} animal nearby!`,
+                body: `A ${severity.toLowerCase()} animal needs help. Tap to respond.`
+            }
+        };
+
         if (newRescuers.length > 0) {
             const ids = newRescuers.map(r => r.rescuer_id);
-            broadcastToRescuers(ids, {
-                type: 'new_incident',
-                incidentId,
-                severity,
-                lat, lng,
-                ring: nextRingConfig.ring, // so iOS can show "expanding search" UI
-                notification: {
-                    title: `🐾 ${severity} animal nearby!`,
-                    body: `A ${severity.toLowerCase()} case reported. Tap to respond.`
-                }
-            });
+            broadcastToRescuers(ids, payload);
             console.log(`📡 Ring ${nextRingConfig.ring} broadcast: ${ids.length} new rescuers`);
+        } else {
+            // Ring expansion found nobody new — pass empty to trigger fallback
+            broadcastToRescuers([], payload);
         }
 
         // Schedule next ring

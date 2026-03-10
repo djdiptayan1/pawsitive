@@ -201,25 +201,66 @@ class RescuerMapViewModel: NSObject, ObservableObject, CLLocationManagerDelegate
     // MARK: - WebSocket
 
     private func connectWebSocket() {
-        guard let userId = KeychainManager.shared.getString(key: .userID) else { return }
+        guard let userId = KeychainManager.shared.getString(key: .userID) else {
+            print("❌ [WS] No userID in Keychain — cannot connect WebSocket")
+            return
+        }
 
         let baseURL = AppConfig.ApiEndpoints.baseURL
             .replacingOccurrences(of: "http://", with: "ws://")
             .replacingOccurrences(of: "https://", with: "wss://")
             .replacingOccurrences(of: "/api/", with: "")
 
-        let wsURLString = "\(baseURL)/ws/track?role=rescuer&userId=\(userId)"
-        guard let url = URL(string: wsURLString) else { return }
+        // Normalise UUID to lowercase — must match what trackingServer stores
+        let normalisedUserId = userId.lowercased()
+        let wsURLString = "\(baseURL)/ws/track?role=rescuer&userId=\(normalisedUserId)"
+        guard let url = URL(string: wsURLString) else {
+            print("❌ [WS] Invalid URL: \(wsURLString)")
+            return
+        }
 
         wsTask?.cancel(with: .goingAway, reason: nil)
-        let session = URLSession(configuration: .default)
+        wsConnected = false
+
+        print("🔗 [WS] Connecting rescuer: \(wsURLString)")
+
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 30
+        let session = URLSession(configuration: config)
         wsTask = session.webSocketTask(with: url)
         wsTask?.resume()
         wsConnected = true
+
+        print("✅ [WS] Rescuer WebSocket connected")
+
+        // Start ping keepalive every 15s so iOS doesn't kill the connection
+        startWSPingTimer()
         receiveWSMessage()
     }
 
+    private var wsPingTimer: Timer?
+
+    private func startWSPingTimer() {
+        wsPingTimer?.invalidate()
+        wsPingTimer = Timer.scheduledTimer(withTimeInterval: 15.0, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.wsTask?.sendPing { error in
+                    if let error {
+                        print("⚠️ [WS] Ping failed: \(error.localizedDescription) — reconnecting")
+                        Task { @MainActor in
+                            self?.wsConnected = false
+                            self?.wsPingTimer?.invalidate()
+                            self?.connectWebSocket()
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     private func disconnectWebSocket() {
+        wsPingTimer?.invalidate()
+        wsPingTimer = nil
         wsTask?.cancel(with: .goingAway, reason: nil)
         wsTask = nil
         wsConnected = false
@@ -234,11 +275,14 @@ class RescuerMapViewModel: NSObject, ObservableObject, CLLocationManagerDelegate
                     self?.handleWSMessage(data)
                 }
                 self?.receiveWSMessage()
-            case .failure:
+            case .failure(let error):
+                print("❌ [WS] Receive error: \(error.localizedDescription)")
                 Task { @MainActor in
                     self?.wsConnected = false
-                    // Reconnect after delay
-                    try? await Task.sleep(nanoseconds: 5000000000)
+                    self?.wsPingTimer?.invalidate()
+                    // Reconnect after 3s (reduced from 5s for faster recovery)
+                    try? await Task.sleep(nanoseconds: 3_000_000_000)
+                    print("🔄 [WS] Reconnecting rescuer WebSocket...")
                     self?.connectWebSocket()
                 }
             }
