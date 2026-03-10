@@ -73,9 +73,7 @@ struct CitizenProfileView: View {
                             HStack(spacing: 12) {
                                 ForEach(viewModel.impactStats) { stat in
                                     NavigationLink(
-                                        destination: IncidentHistoryView(
-                                            type: stat.title == "Reports Filed"
-                                                ? "Reports" : "Rescues")
+                                        destination: IncidentHistoryView(type: stat.title)
                                     ) {
                                         VStack(spacing: 10) {
                                             Image(systemName: stat.icon)

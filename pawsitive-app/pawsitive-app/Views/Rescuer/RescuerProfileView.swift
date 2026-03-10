@@ -106,34 +106,24 @@ struct RescuerProfileView: View {
 
                         HStack(spacing: 16) {
                             ForEach(viewModel.impactStats) { stat in
-                                VStack(spacing: 8) {
-                                    Image(systemName: stat.icon)
-                                        .font(.title2)
-                                        .foregroundColor(AppConfig.Colors.accent)
-
-                                    Text(stat.value)
-                                        .font(.title3.bold())
-                                        .foregroundColor(AppConfig.Colors.textPrimary)
-
-                                    Text(stat.title)
-                                        .font(AppConfig.Fonts.small)
-                                        .foregroundColor(AppConfig.Colors.textSecondary)
-                                        .multilineTextAlignment(.center)
+                                Group {
+                                    if stat.title == "Active Hours" {
+                                        statContentView(stat)
+                                    } else {
+                                        NavigationLink(
+                                            destination: IncidentHistoryView(type: stat.title)
+                                        ) {
+                                            statContentView(stat)
+                                        }
+                                    }
                                 }
-                                .frame(maxWidth: .infinity)
-                                .padding(AppConfig.UI.padding)
-                                .background(AppConfig.Colors.card)
-                                .cornerRadius(AppConfig.UI.cornerRadius)
-                                .shadow(
-                                    color: Color.black.opacity(0.05),
-                                    radius: AppConfig.UI.cardShadowRadius, x: 0,
-                                    y: AppConfig.UI.cardShadowOffsetY)
                             }
                         }
                     }
                     .padding(.horizontal)
 
                     // MARK: - Recent Activity
+
                     VStack(alignment: .leading, spacing: 16) {
                         Text("Recent Dispatch Activity")
                             .font(AppConfig.Fonts.headline)
@@ -253,6 +243,33 @@ struct RescuerProfileView: View {
             .background(AppConfig.Colors.background)
             .navigationTitle("My Profile")
         }
+    }
+
+    @ViewBuilder
+    private func statContentView(_ stat: ImpactStat) -> some View {
+        VStack(spacing: 8) {
+            Image(systemName: stat.icon)
+                .font(.title2)
+                .foregroundColor(AppConfig.Colors.accent)
+
+            Text(stat.value)
+                .font(.title3.bold())
+                .foregroundColor(AppConfig.Colors.textPrimary)
+
+            Text(stat.title)
+                .font(AppConfig.Fonts.small)
+                .foregroundColor(AppConfig.Colors.textSecondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(AppConfig.UI.padding)
+        .background(AppConfig.Colors.card)
+        .cornerRadius(AppConfig.UI.cornerRadius)
+        .shadow(
+            color: Color.black.opacity(0.05),
+            radius: AppConfig.UI.cardShadowRadius, x: 0,
+            y: AppConfig.UI.cardShadowOffsetY
+        )
     }
 }
 

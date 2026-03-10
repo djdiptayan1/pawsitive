@@ -62,19 +62,15 @@ struct IncidentHistoryView: View {
                             }
                             .padding(.top, 60)
 
-                            Text(type == "Reports" ? "No Reports Yet" : "No Rescues Yet")
+                            Text(viewModel.emptyStateTitle)
                                 .font(AppConfig.Fonts.titleMedium)
                                 .foregroundColor(AppConfig.Colors.textPrimary)
 
-                            Text(
-                                type == "Reports"
-                                    ? "When you report an animal in distress, your history will appear here."
-                                    : "Completed rescues will show up here."
-                            )
-                            .font(AppConfig.Fonts.body)
-                            .foregroundColor(AppConfig.Colors.textSecondary)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 40)
+                            Text(viewModel.emptyStateMessage)
+                                .font(AppConfig.Fonts.body)
+                                .foregroundColor(AppConfig.Colors.textSecondary)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 40)
                         }
                     } else {
                         LazyVStack(spacing: 16) {
@@ -90,7 +86,7 @@ struct IncidentHistoryView: View {
             }
         }
         .background(AppConfig.Colors.background.ignoresSafeArea())
-        .navigationTitle(type == "Reports" ? "Reports Filed" : "Animals Helped")
+        .navigationTitle(viewModel.navigationTitle)
         .navigationBarTitleDisplayMode(.inline)
     }
 
