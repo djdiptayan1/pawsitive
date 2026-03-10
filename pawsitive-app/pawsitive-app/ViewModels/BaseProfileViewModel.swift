@@ -12,28 +12,6 @@ struct ImpactStat: Identifiable {
     let icon: String  // SF Symbol name
 }
 
-//struct RecentActivityModel: Identifiable, Decodable {
-//    let id: String
-//    let title: String?
-//    let type: String?
-//    let createdAt: String
-//    let status: String?
-//    let severity: String?
-//    let locationName: String?
-//    let photoUrl: String?
-//
-//    enum CodingKeys: String, CodingKey {
-//        case id
-//        case title
-//        case type
-//        case createdAt = "created_at"
-//        case status
-//        case severity
-//        case locationName = "location_name"
-//        case photoUrl = "photo_url"
-//    }
-//}
-
 @MainActor
 class BaseProfileViewModel: ObservableObject {
     @Published var fullName: String = ""

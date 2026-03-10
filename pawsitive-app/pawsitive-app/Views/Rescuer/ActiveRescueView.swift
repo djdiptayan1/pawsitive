@@ -34,16 +34,21 @@ struct ActiveRescueView: View {
         }
         .onAppear { viewModel.startPolling() }
         .onDisappear { viewModel.stopPolling() }
-        .alert(
-            viewModel.completeSuccess ? "Rescue Complete!" : "Error",
-            isPresented: $viewModel.showCompleteAlert
-        ) {
-            Button("OK") {}
-        } message: {
-            Text(
-                viewModel.completeSuccess
-                    ? "Great work! The animal has been marked as rescued."
-                    : "Failed to complete rescue. Please try again.")
+        .fullScreenCover(isPresented: $viewModel.showCompleteAlert) {
+            SuccessPopupView(
+                title: "Rescue Complete!",
+                heroText: "Mission Accomplished! 🐾",
+                message:
+                    "Great work! The animal has been marked as rescued. Thank you for being a hero.",
+                animationName: "thankYou",
+                showButtons: true,
+                onBackToMap: {
+                    // Optional: reset VM or navigate
+                },
+                onShareStory: {
+                    // Logic to share the story
+                }
+            )
         }
     }
 

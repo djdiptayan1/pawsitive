@@ -56,12 +56,14 @@ struct SOSView: View {
                             Text("Describe the situation")
                                 .font(AppConfig.Fonts.headline)
                                 .foregroundColor(AppConfig.Colors.textPrimary)
-                            
+
                             HStack {
                                 Image(systemName: "pencil.line")
                                     .foregroundColor(AppConfig.Colors.textSecondary)
-                                TextField("E.g., Stray dog hit by car...", text: $sosVM.incidentTitle)
-                                    .font(AppConfig.Fonts.body)
+                                TextField(
+                                    "E.g., Stray dog hit by car...", text: $sosVM.incidentTitle
+                                )
+                                .font(AppConfig.Fonts.body)
                             }
                             .padding(16)
                             .background(AppConfig.Colors.card)
@@ -88,10 +90,15 @@ struct SOSView: View {
             CitizenProfileView(sessionVM: session)
                 .environmentObject(session)
         }
-        .alert("Help is on the way! 🚑", isPresented: $sosVM.showSuccessAlert) {
-            Button("Got it", role: .cancel) { }
-        } message: {
-            Text("Your report has been broadcasted to nearby rescuers. Please stay nearby if safe to do so.")
+        .fullScreenCover(isPresented: $sosVM.showSuccessAlert) {
+            SuccessPopupView(
+                title: "Report Submitted",
+                heroText: "Help is on the way!",
+                message:
+                    "Your report has been broadcasted to nearby rescuers. Please stay nearby if safe to do so.",
+                animationName: "thankYou",  // Or another relevant animation
+                showButtons: false
+            )
         }
         .onAppear {
             cameraVM.checkPermission()
@@ -132,14 +139,14 @@ struct HeaderView: View {
                         .foregroundColor(AppConfig.Colors.accent)
                         .font(.title2)
                 }
-                
+
                 Text("Ready to save a life today?")
                     .font(.system(size: 14, weight: .medium, design: .rounded))
                     .foregroundColor(AppConfig.Colors.textSecondary)
             }
 
             Spacer()
-            
+
             Button(action: onProfileTap) {
                 Image(systemName: "person.crop.circle.fill")
                     .resizable()
@@ -169,9 +176,12 @@ struct CameraSectionView: View {
                                 Image(systemName: "camera.fill")
                                     .font(.system(size: 40))
                                     .foregroundColor(AppConfig.Colors.textSecondary.opacity(0.5))
-                                Text(cameraVM.permissionGranted ? "Starting camera..." : "Camera access needed")
-                                    .font(AppConfig.Fonts.small)
-                                    .foregroundColor(AppConfig.Colors.textSecondary)
+                                Text(
+                                    cameraVM.permissionGranted
+                                        ? "Starting camera..." : "Camera access needed"
+                                )
+                                .font(AppConfig.Fonts.small)
+                                .foregroundColor(AppConfig.Colors.textSecondary)
                             }
                         )
                 }
@@ -276,23 +286,26 @@ struct UrgencySectionView: View {
                     title: "Bleeding",
                     severity: .severe,
                     icon: "drop.fill",
-                    isSelected: selectedSeverity == .severe) {
-                        selectedSeverity = .severe
-                    }
+                    isSelected: selectedSeverity == .severe
+                ) {
+                    selectedSeverity = .severe
+                }
                 UrgencyCard(
                     title: "Injury",
                     severity: .moderate,
                     icon: "bandage.fill",
-                    isSelected: selectedSeverity == .moderate) {
-                        selectedSeverity = .moderate
-                    }
+                    isSelected: selectedSeverity == .moderate
+                ) {
+                    selectedSeverity = .moderate
+                }
                 UrgencyCard(
                     title: "Sick/Stranded",
                     severity: .minor,
                     icon: "thermometer.medium",
-                    isSelected: selectedSeverity == .minor) {
-                        selectedSeverity = .minor
-                    }
+                    isSelected: selectedSeverity == .minor
+                ) {
+                    selectedSeverity = .minor
+                }
             }
         }
     }
@@ -312,7 +325,7 @@ struct UrgencyCard: View {
                     Circle()
                         .fill(isSelected ? Color.white.opacity(0.2) : severity.color.opacity(0.1))
                         .frame(width: 44, height: 44)
-                    
+
                     Image(systemName: icon)
                         .font(.system(size: 20, weight: .semibold))
                         .foregroundColor(isSelected ? .white : severity.color)
@@ -330,10 +343,15 @@ struct UrgencyCard: View {
             .padding(.horizontal, 4)
             .background(isSelected ? severity.color : AppConfig.Colors.card)
             .cornerRadius(20)
-            .shadow(color: isSelected ? severity.color.opacity(0.3) : Color.black.opacity(0.03), radius: 8, y: 4)
+            .shadow(
+                color: isSelected ? severity.color.opacity(0.3) : Color.black.opacity(0.03),
+                radius: 8, y: 4
+            )
             .overlay(
                 RoundedRectangle(cornerRadius: 20)
-                    .stroke(isSelected ? severity.color : AppConfig.Colors.stroke.opacity(0.08), lineWidth: isSelected ? 2 : 1)
+                    .stroke(
+                        isSelected ? severity.color : AppConfig.Colors.stroke.opacity(0.08),
+                        lineWidth: isSelected ? 2 : 1)
             )
         }
     }
