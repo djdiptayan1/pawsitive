@@ -49,7 +49,6 @@ struct RescuerProfileView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(AppConfig.Colors.background.ignoresSafeArea())
                 .navigationTitle("My Profile")
-                .navigationBarTitleDisplayMode(.inline)
             } else {
                 ScrollView {
                     VStack(spacing: 28) {
@@ -194,14 +193,6 @@ struct RescuerProfileView: View {
                 }
                 .background(AppConfig.Colors.background.ignoresSafeArea())
                 .navigationTitle("My Profile")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button("Done") { dismiss() }
-                            .font(AppConfig.Fonts.bodyBold)
-                            .foregroundColor(AppConfig.Colors.accent)
-                    }
-                }
             }
         }
     }
