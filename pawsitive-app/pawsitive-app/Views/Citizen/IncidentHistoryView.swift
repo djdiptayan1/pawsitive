@@ -92,84 +92,108 @@ struct IncidentHistoryView: View {
 
     @ViewBuilder
     private func historyCard(_ incident: RecentActivityModel) -> some View {
-        HStack(alignment: .center, spacing: 16) {
-            // Photo thumbnail
-            ZStack {
-                if let urlStr = incident.photoUrl, let url = URL(string: urlStr) {
-                    AsyncImage(url: url) { phase in
-                        if let image = phase.image {
-                            image.resizable().scaledToFill()
-                        } else {
-                            Color.gray.opacity(0.15)
+        let isCompleted = {
+            let status = incident.status?.lowercased() ?? ""
+            return status == "rescued" || status == "rehabilitated" || status == "completed"
+        }()
+
+        VStack(spacing: 0) {
+            HStack(alignment: .center, spacing: 16) {
+                // Photo thumbnail
+                ZStack {
+                    if let urlStr = incident.photoUrl, let url = URL(string: urlStr) {
+                        AsyncImage(url: url) { phase in
+                            if let image = phase.image {
+                                image.resizable().scaledToFill()
+                            } else {
+                                Color.gray.opacity(0.15)
+                            }
                         }
+                    } else {
+                        AppConfig.Colors.accent.opacity(0.1)
+                            .overlay(
+                                Image(systemName: "pawprint.fill")
+                                    .foregroundColor(AppConfig.Colors.accent)
+                                    .font(.title2)
+                            )
                     }
-                } else {
-                    AppConfig.Colors.accent.opacity(0.1)
-                        .overlay(
-                            Image(systemName: "pawprint.fill")
-                                .foregroundColor(AppConfig.Colors.accent)
-                                .font(.title2)
-                        )
                 }
-            }
-            .frame(width: 90, height: 90)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
+                .frame(width: 90, height: 90)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
 
-            VStack(alignment: .leading, spacing: 8) {
-                // Status + Severity badges
-                HStack(spacing: 6) {
-                    Text(incident.status?.uppercased() ?? "UNKNOWN")
-                        .font(.system(size: 10, weight: .bold, design: .rounded))
-                        .foregroundColor(viewModel.statusColor(incident.status))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(viewModel.statusColor(incident.status).opacity(0.15))
-                        .clipShape(Capsule())
-
-                    if let severity = incident.severity {
-                        Text(severity.uppercased())
+                VStack(alignment: .leading, spacing: 8) {
+                    // Status + Severity badges
+                    HStack(spacing: 6) {
+                        Text(incident.status?.uppercased() ?? "UNKNOWN")
                             .font(.system(size: 10, weight: .bold, design: .rounded))
-                            .foregroundColor(viewModel.severityColor(severity))
+                            .foregroundColor(viewModel.statusColor(incident.status))
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
-                            .background(viewModel.severityColor(severity).opacity(0.15))
+                            .background(viewModel.statusColor(incident.status).opacity(0.15))
                             .clipShape(Capsule())
+
+                        if let severity = incident.severity {
+                            Text(severity.uppercased())
+                                .font(.system(size: 10, weight: .bold, design: .rounded))
+                                .foregroundColor(viewModel.severityColor(severity))
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(viewModel.severityColor(severity).opacity(0.15))
+                                .clipShape(Capsule())
+                        }
                     }
-                }
 
-                Text(incident.title ?? "Animal Rescue Request")
-                    .font(AppConfig.Fonts.bodyBold)
-                    .foregroundColor(AppConfig.Colors.textPrimary)
-                    .lineLimit(1)
+                    Text(incident.title ?? "Animal Rescue Request")
+                        .font(AppConfig.Fonts.bodyBold)
+                        .foregroundColor(AppConfig.Colors.textPrimary)
+                        .lineLimit(1)
 
-                VStack(alignment: .leading, spacing: 4) {
-                    if let location = incident.locationName, !location.isEmpty {
+                    VStack(alignment: .leading, spacing: 4) {
+                        if let location = incident.locationName, !location.isEmpty {
+                            HStack(spacing: 6) {
+                                Image(systemName: "mappin.and.ellipse")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(AppConfig.Colors.textSecondary)
+                                    .frame(width: 14)
+                                Text(location)
+                                    .font(.system(size: 13, weight: .regular, design: .rounded))
+                                    .foregroundColor(AppConfig.Colors.textSecondary)
+                                    .lineLimit(1)
+                            }
+                        }
+
                         HStack(spacing: 6) {
-                            Image(systemName: "mappin.and.ellipse")
+                            Image(systemName: "clock")
                                 .font(.system(size: 12))
                                 .foregroundColor(AppConfig.Colors.textSecondary)
                                 .frame(width: 14)
-                            Text(location)
+                            Text(DateUtils.formatSupabaseDate(incident.createdAt))
                                 .font(.system(size: 13, weight: .regular, design: .rounded))
                                 .foregroundColor(AppConfig.Colors.textSecondary)
-                                .lineLimit(1)
                         }
                     }
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(14)
 
+            // "Watch Rescue Story" button for completed incidents
+            if isCompleted {
+                NavigationLink(destination: RescueReplayView(incidentId: incident.id)) {
                     HStack(spacing: 6) {
-                        Image(systemName: "clock")
-                            .font(.system(size: 12))
-                            .foregroundColor(AppConfig.Colors.textSecondary)
-                            .frame(width: 14)
-                        Text(DateUtils.formatSupabaseDate(incident.createdAt))
-                            .font(.system(size: 13, weight: .regular, design: .rounded))
-                            .foregroundColor(AppConfig.Colors.textSecondary)
+                        Image(systemName: "play.circle.fill")
+                            .font(.system(size: 16, weight: .medium))
+                        Text("Watch Rescue Story")
+                            .font(.system(size: 13, weight: .semibold, design: .rounded))
                     }
+                    .foregroundColor(AppConfig.Colors.accent)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(AppConfig.Colors.accent.opacity(0.08))
+                    .cornerRadius(0)
                 }
             }
-            Spacer(minLength: 0)
         }
-        .padding(14)
         .background(AppConfig.Colors.card)
         .cornerRadius(AppConfig.UI.cornerRadius)
         .shadow(

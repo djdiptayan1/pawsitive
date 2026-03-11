@@ -25,11 +25,13 @@ class LoginViewModel: ObservableObject {
         do {
             try await supabase.auth.signIn(email: email, password: password)
             // On success, SessionViewModel will automatically pick it up
+            HapticManager.shared.trigger(.success)
             isLoading = false
         } catch {
             isLoading = false
             errorMessage = error.localizedDescription
             showAlert = true
+            HapticManager.shared.trigger(.error)
             print("Login Error: \(error)")
         }
     }

@@ -34,6 +34,7 @@ class SignupViewModel: ObservableObject {
 
     func handleNext() {
         // Add your validation here
+        HapticManager.shared.trigger(.light)
         withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
             currentStep = .profile
         }
@@ -88,6 +89,7 @@ class SignupViewModel: ObservableObject {
                 try? KeychainManager.shared.save(key: .userRole, value: profile.role)
 
                 DispatchQueue.main.async {
+                    HapticManager.shared.trigger(.success)
                     self.isLoading = false
                     // Success! SessionViewModel will pick up the auth state change
                     // and log the user in automatically.
@@ -97,6 +99,7 @@ class SignupViewModel: ObservableObject {
                     self.isLoading = false
                     self.errorMessage = error.localizedDescription
                     self.showAlert = true
+                    HapticManager.shared.trigger(.error)
                 }
                 print("Signup error: \(error)")
             }

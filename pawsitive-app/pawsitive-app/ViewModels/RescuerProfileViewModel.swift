@@ -10,14 +10,18 @@ class RescuerProfileViewModel: BaseProfileViewModel {
     @Published var ngoName: String? = nil
     @Published var operatingCity: String? = nil
 
+    // Pawsitive Credits
+    @Published var totalCredits: Int = 0
+    @Published var tierName: String = "Volunteer"
+    @Published var tierBadge: String = "🥉"
+
     override init(sessionVM: SessionViewModel) {
         super.init(sessionVM: sessionVM)
 
-        // Stubbed Data for Impact & Activity explicitly for rescuers
         self.impactStats = [
-            ImpactStat(title: "Rescues", value: "34", icon: "cross.case.fill"),
-            ImpactStat(title: "Active Hours", value: "120", icon: "clock.fill"),
-            ImpactStat(title: "Rating", value: "4.9", icon: "star.fill"),
+            ImpactStat(title: "Rescues", value: "-", icon: "cross.case.fill"),
+            ImpactStat(title: "Active Jobs", value: "-", icon: "bolt.heart.fill"),
+            ImpactStat(title: "Earnings", value: "-", icon: "star.circle.fill"),
         ]
 
         loadProfile()
@@ -39,7 +43,7 @@ class RescuerProfileViewModel: BaseProfileViewModel {
     private func fetchAndUpdateProfile(email: String) async {
         do {
             let result: ProfileResponse = try await NetworkManager.shared.request(
-                endpoint: AuthEndpoint.getProfile(token: ""),  // Handled by NetworkManager
+                endpoint: AuthEndpoint.getProfile(token: ""),
                 keyDecodingStrategy: .useDefaultKeys
             )
 
@@ -54,16 +58,21 @@ class RescuerProfileViewModel: BaseProfileViewModel {
 
                 let rescuesCompleted = result.user.rescuesCompleted ?? 0
                 let activeRescues = result.user.activeRescues ?? 0
-                let activeHours = rescuesCompleted * 2  // rough estimation for dummy stats
 
                 self.impactStats = [
                     ImpactStat(
                         title: "Rescues", value: "\(rescuesCompleted)", icon: "cross.case.fill"),
-                    ImpactStat(title: "Active Jobs", value: "\(activeRescues)", icon: "clock.fill"),
                     ImpactStat(
-                        title: "Active Hours", value: "\(activeHours > 0 ? activeHours : 120)",
-                        icon: "star.fill"),
+                        title: "Active Jobs", value: "\(activeRescues)", icon: "bolt.heart.fill"),
+                    ImpactStat(
+                        title: "Earnings", value: "\(result.user.totalCredits ?? 0)",
+                        icon: "star.circle.fill"),
                 ]
+
+                // Pawsitive Credits
+                self.totalCredits = result.user.totalCredits ?? 0
+                self.tierName = result.user.tierName ?? "Volunteer"
+                self.tierBadge = result.user.tierBadge ?? "🥉"
 
                 if let activities = result.user.recentActivities {
                     self.recentActivities = Array(activities.prefix(2))

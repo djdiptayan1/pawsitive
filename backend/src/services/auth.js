@@ -1,5 +1,6 @@
 import { supabase, supabaseAnon } from '../db/supabase.js';
 import { resolveLocationNames } from './location.js';
+import { getTotalCredits, deriveTier } from './credits.js';
 
 export async function verifyTokenAndGetProfile(token) {
     console.log('🔍 [Auth Service] Verifying token and fetching profile...');
@@ -117,7 +118,8 @@ export async function getProfile(userId) {
     data.rescues_completed = rescues_completed || 0;
     data.active_rescues = active_rescues || 0;
 
-    // Fetch last 5 incidents reported (including completed ones)
+    // Fetch last 5 incidents — citizen sees their reports, rescuer sees their rescues
+    const recentFilter = data.role === 'rescuer' ? 'assigned_rescuer_id' : 'reporter_id';
     const { data: recent_incidents, error: recent_error } = await supabase
         .from('incidents')
         .select(`
@@ -130,7 +132,7 @@ export async function getProfile(userId) {
             location_name,
             geo_location
         `)
-        .eq('reporter_id', userId)
+        .eq(recentFilter, userId)
         .order('created_at', { ascending: false })
         .limit(5);
 
@@ -139,6 +141,22 @@ export async function getProfile(userId) {
     }
 
     data.recent_activities = recent_incidents ? await resolveLocationNames(recent_incidents) : [];
+
+    // Fetch Pawsitive Credits for rescuers
+    if (data.role === 'rescuer') {
+        try {
+            const totalCredits = await getTotalCredits(userId);
+            const tier = deriveTier(totalCredits);
+            data.total_credits = totalCredits;
+            data.tier_name = tier.name;
+            data.tier_badge = tier.badge;
+        } catch (err) {
+            console.error('⚠️ [Auth Service] Failed to fetch credits:', err.message);
+            data.total_credits = 0;
+            data.tier_name = 'Volunteer';
+            data.tier_badge = '🥉';
+        }
+    }
 
     console.log('✅ [Auth Service] Profile fetched:', {
         id: data.id,

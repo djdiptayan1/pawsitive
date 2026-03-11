@@ -11,12 +11,14 @@ import SwiftUI
 struct RescuerMapView: View {
     @StateObject private var viewModel = RescuerMapViewModel()
 
-    @State private var position: MapCameraPosition = .userLocation(fallback: .region(MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: 13.0827, longitude: 80.2707), span: MKCoordinateSpan(latitudeDelta: 0.02, longitudeDelta: 0.02))))
+    @State private var position: MapCameraPosition = .userLocation(fallback: .automatic)
+    @State private var hasCenteredOnUser = false
     @State private var selectedIncident: RecentActivityModel? = nil
     @State private var selectedVetPlace: NearbyVetPlace?
     @State private var showAcceptAlert = false
     @State private var acceptSuccess = false
     @State private var showVetOptions = false
+    @State private var showJobsSheet = false
 
     var body: some View {
         NavigationStack {
@@ -105,29 +107,38 @@ struct RescuerMapView: View {
                             }
                         }
                     } else {
-                        statusCard {
-                            HStack {
-                                Image(systemName: "exclamationmark.triangle.fill")
-                                    .foregroundColor(AppConfig.Colors.alert)
-                                Text(
-                                    "\(viewModel.pendingIncidents.count) pending rescue\(viewModel.pendingIncidents.count == 1 ? "" : "s")"
-                                )
-                                .font(AppConfig.Fonts.bodyBold)
-                                .foregroundColor(AppConfig.Colors.textPrimary)
-
-                                Spacer()
-
-                                Circle()
-                                    .fill(
-                                        viewModel.wsConnected
-                                            ? AppConfig.Colors.success : AppConfig.Colors.alert
+                        Button {
+                            showJobsSheet = true
+                        } label: {
+                            statusCard {
+                                HStack {
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                        .foregroundColor(AppConfig.Colors.alert)
+                                    Text(
+                                        "\(viewModel.pendingIncidents.count) pending rescue\(viewModel.pendingIncidents.count == 1 ? "" : "s")"
                                     )
-                                    .frame(width: 8, height: 8)
-                                Text(viewModel.wsConnected ? "Live" : "Polling")
-                                    .font(AppConfig.Fonts.small)
-                                    .foregroundColor(AppConfig.Colors.textSecondary)
+                                    .font(AppConfig.Fonts.bodyBold)
+                                    .foregroundColor(AppConfig.Colors.textPrimary)
+
+                                    Spacer()
+
+                                    Circle()
+                                        .fill(
+                                            viewModel.wsConnected
+                                                ? AppConfig.Colors.success : AppConfig.Colors.alert
+                                        )
+                                        .frame(width: 8, height: 8)
+                                    Text(viewModel.wsConnected ? "Live" : "Polling")
+                                        .font(AppConfig.Fonts.small)
+                                        .foregroundColor(AppConfig.Colors.textSecondary)
+
+                                    Image(systemName: "chevron.up")
+                                        .font(.system(size: 11, weight: .semibold))
+                                        .foregroundColor(AppConfig.Colors.textSecondary)
+                                }
                             }
                         }
+                        .buttonStyle(.plain)
                     }
                 }
             }
@@ -144,6 +155,16 @@ struct RescuerMapView: View {
         .onAppear {
             viewModel.startMonitoring()
         }
+//        .onChange(of: viewModel.userLocation) { newLocation in
+//            guard let newLocation, !hasCenteredOnUser else { return }
+//            position = .region(
+//                MKCoordinateRegion(
+//                    center: newLocation,
+//                    span: MKCoordinateSpan(latitudeDelta: 0.02, longitudeDelta: 0.02)
+//                )
+//            )
+//            hasCenteredOnUser = true
+//        }
         .onDisappear {
             viewModel.stopMonitoring()
         }
@@ -181,6 +202,10 @@ struct RescuerMapView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text(selectedVetPlace?.subtitle ?? "")
+        }
+        .sheet(isPresented: $showJobsSheet) {
+            JobsView()
+                .presentationDetents([.medium, .large])
         }
     }
 

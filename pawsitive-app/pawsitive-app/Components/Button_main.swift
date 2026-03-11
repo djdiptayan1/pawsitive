@@ -10,7 +10,7 @@ struct ButtonMain: View {
 
     var body: some View {
         Button(action: {
-            HapticManager.shared.trigger(.selection)
+            HapticManager.shared.trigger(.medium)
             action()
         }) {
             ZStack {

@@ -15,6 +15,7 @@ enum IncidentEndpoint: Endpoint {
     case completeIncident(token: String, id: String, rescuePhotoUrl: String?, dropOffType: String?)
     case getConditionLog(token: String, id: String)
     case postConditionLog(token: String, id: String, stage: String, note: String?)
+    case locationHistory(token: String, id: String)
 
     var path: String {
         switch self {
@@ -46,6 +47,8 @@ enum IncidentEndpoint: Endpoint {
             return "incidents/\(id)/condition-log"
         case .postConditionLog(_, let id, _, _):
             return "incidents/\(id)/condition-log"
+        case .locationHistory(_, let id):
+            return "incidents/\(id)/location-history"
         }
     }
 
@@ -53,7 +56,7 @@ enum IncidentEndpoint: Endpoint {
         switch self {
         case .createIncident, .uploadPhoto:
             return .post
-        case .myReports, .myRescues, .activeIncident, .nearbyActiveIncidents, .activeRescue, .pendingIncidents, .heatmap, .getConditionLog:
+        case .myReports, .myRescues, .activeIncident, .nearbyActiveIncidents, .activeRescue, .pendingIncidents, .heatmap, .getConditionLog, .locationHistory:
             return .get
         case .acceptIncident, .completeIncident:
             return .patch
@@ -82,7 +85,8 @@ enum IncidentEndpoint: Endpoint {
             .acceptIncident(let token, _),
             .completeIncident(let token, _, _, _),
             .getConditionLog(let token, _),
-            .postConditionLog(let token, _, _, _):
+            .postConditionLog(let token, _, _, _),
+            .locationHistory(let token, _):
             return [
                 "Content-Type": "application/json",
                 "Authorization": "Bearer \(token)",
@@ -134,7 +138,8 @@ enum IncidentEndpoint: Endpoint {
             }
             return ConditionPayload(stage: stage, note: note, photoUrl: nil)
         case .myReports, .myRescues, .activeIncident, .nearbyActiveIncidents, .heatmap,
-            .activeRescue, .pendingIncidents, .acceptIncident, .uploadPhoto, .getConditionLog:
+            .activeRescue, .pendingIncidents, .acceptIncident, .uploadPhoto, .getConditionLog,
+            .locationHistory:
             return nil
         }
     }

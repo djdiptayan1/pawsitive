@@ -255,7 +255,10 @@ struct RoleButton: View {
     let action: () -> Void
 
     var body: some View {
-        Button(action: action) {
+        Button(action: {
+            HapticManager.shared.trigger(.selection)
+            action()
+        }) {
             Text(title)
                 .font(.system(size: 18, weight: .bold, design: .rounded))
                 .foregroundColor(AppConfig.Colors.textPrimary)

@@ -27,6 +27,11 @@ struct UserProfile: Codable, Identifiable {
     let activeRescues: Int?
     let recentActivities: [RecentActivityModel]?
 
+    // Pawsitive Credits (rescuer only)
+    let totalCredits: Int?
+    let tierName: String?
+    let tierBadge: String?
+
     enum CodingKeys: String, CodingKey {
         case id
         case email
@@ -45,6 +50,9 @@ struct UserProfile: Codable, Identifiable {
         case rescuesCompleted = "rescues_completed"
         case activeRescues = "active_rescues"
         case recentActivities = "recent_activities"
+        case totalCredits = "total_credits"
+        case tierName = "tier_name"
+        case tierBadge = "tier_badge"
     }
 }
 

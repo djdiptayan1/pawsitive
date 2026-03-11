@@ -170,6 +170,9 @@ struct SuccessPopupView: View {
                 }
             }
         }
+        .onAppear {
+            HapticManager.shared.trigger(.success)
+        }
     }
 }
 

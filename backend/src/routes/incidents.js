@@ -16,6 +16,7 @@ import {
     listConditionLog,
     postConditionLog,
 } from '../services/incident.js';
+import { getLocationHistory } from '../services/location.js';
 
 const router = Router();
 
@@ -127,6 +128,16 @@ router.get('/:id', requireAuth, async (req, res, next) => {
     try {
         const incident = await getIncidentById(req.params.id);
         res.json({ incident });
+    } catch (err) {
+        next(err);
+    }
+});
+
+// GET /incidents/:id/location-history — GPS trail for rescue replay
+router.get('/:id/location-history', requireAuth, async (req, res, next) => {
+    try {
+        const points = await getLocationHistory(req.params.id);
+        res.json({ points });
     } catch (err) {
         next(err);
     }
