@@ -3,11 +3,14 @@
 Pawsitive is an application connecting citizens and rescuers to help animals in distress. It allows citizens to report animal emergencies (SOS) and dispatches nearby verified rescuers using real-time location tracking to provide immediate assistance.
 
 ## Features
-- **SOS Reporting:** Citizens can quickly report animal emergencies, including severity, location, and photos.
-- **Real-Time Location Tracking:** Tracks rescuer locations using WebSockets for accurate dispatching and ETA updates.
-- **Dispatch System:** Automatically alerts nearby rescuers based on proximity and the severity of the incident.
-- **User Roles:** Distinct features and dashboards for Citizens and Rescuers.
-- **Credit System:** Rescuers earn credits for successful rescues.
+- **SOS Reporting & Triage:** Citizens can report animal emergencies with photos, location, and severity (Severe, Moderate, Minor). The system calculates urgency scores and handles duplicate cases by grouping reports.
+- **Intelligent Dispatch System:** Automatically alerts nearby verified rescuers using a dynamic expanding ring radius based on incident severity and proximity wait times.
+- **Real-Time Location & ETA:** Tracks rescuer locations via WebSockets for precise dispatching and provides live ETA updates to citizens and NGOs.
+- **Rescue Condition & Staging Logs:** Rescuers can log the condition of the animal at various stages (`en_route`, `on_scene`, `first_aid`, `in_transport`, `at_vet`, `recovered`) including adding notes and photos.
+- **Drop-off Handling:** Tracks where the animal was taken (`vet_hospital`, `ngo_shelter`, or `treated_on_scene`).
+- **User Roles & Dashboards:** Distinct interfaces for Citizens (reporting and tracking), Rescuers (managing active rescues and status), and NGOs.
+- **Credit System:** Rescuers earn credits for their contributions and successful rescues.
+- **Rescue Replay & History:** Stores rescue location history for detailed activity logging and potential replay/review of rescues.
 
 ## Tech Stack
 - **Frontend:** iOS application built with Swift and SwiftUI, utilizing MVVM architecture.
