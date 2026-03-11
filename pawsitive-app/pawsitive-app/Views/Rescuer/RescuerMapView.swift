@@ -18,6 +18,7 @@ struct RescuerMapView: View {
     @State private var showAcceptAlert = false
     @State private var acceptSuccess = false
     @State private var showVetOptions = false
+    @State private var showJobsSheet = false
 
     var body: some View {
         NavigationStack {
@@ -106,29 +107,38 @@ struct RescuerMapView: View {
                             }
                         }
                     } else {
-                        statusCard {
-                            HStack {
-                                Image(systemName: "exclamationmark.triangle.fill")
-                                    .foregroundColor(AppConfig.Colors.alert)
-                                Text(
-                                    "\(viewModel.pendingIncidents.count) pending rescue\(viewModel.pendingIncidents.count == 1 ? "" : "s")"
-                                )
-                                .font(AppConfig.Fonts.bodyBold)
-                                .foregroundColor(AppConfig.Colors.textPrimary)
-
-                                Spacer()
-
-                                Circle()
-                                    .fill(
-                                        viewModel.wsConnected
-                                            ? AppConfig.Colors.success : AppConfig.Colors.alert
+                        Button {
+                            showJobsSheet = true
+                        } label: {
+                            statusCard {
+                                HStack {
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                        .foregroundColor(AppConfig.Colors.alert)
+                                    Text(
+                                        "\(viewModel.pendingIncidents.count) pending rescue\(viewModel.pendingIncidents.count == 1 ? "" : "s")"
                                     )
-                                    .frame(width: 8, height: 8)
-                                Text(viewModel.wsConnected ? "Live" : "Polling")
-                                    .font(AppConfig.Fonts.small)
-                                    .foregroundColor(AppConfig.Colors.textSecondary)
+                                    .font(AppConfig.Fonts.bodyBold)
+                                    .foregroundColor(AppConfig.Colors.textPrimary)
+
+                                    Spacer()
+
+                                    Circle()
+                                        .fill(
+                                            viewModel.wsConnected
+                                                ? AppConfig.Colors.success : AppConfig.Colors.alert
+                                        )
+                                        .frame(width: 8, height: 8)
+                                    Text(viewModel.wsConnected ? "Live" : "Polling")
+                                        .font(AppConfig.Fonts.small)
+                                        .foregroundColor(AppConfig.Colors.textSecondary)
+
+                                    Image(systemName: "chevron.up")
+                                        .font(.system(size: 11, weight: .semibold))
+                                        .foregroundColor(AppConfig.Colors.textSecondary)
+                                }
                             }
                         }
+                        .buttonStyle(.plain)
                     }
                 }
             }
@@ -192,6 +202,10 @@ struct RescuerMapView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text(selectedVetPlace?.subtitle ?? "")
+        }
+        .sheet(isPresented: $showJobsSheet) {
+            JobsView()
+                .presentationDetents([.medium, .large])
         }
     }
 

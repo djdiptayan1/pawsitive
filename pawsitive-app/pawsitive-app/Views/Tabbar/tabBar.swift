@@ -41,11 +41,11 @@ struct MainTabBar: View {
                     view: AnyView(RescuerMapView())
                 ),
 
-                AppTab(
-                    title: "Jobs",
-                    systemImage: "briefcase.fill",
-                    view: AnyView(JobsView())
-                ),
+                // AppTab(
+                //     title: "Jobs",
+                //     systemImage: "briefcase.fill",
+                //     view: AnyView(JobsView())
+                // ),
 
                 AppTab(
                     title: "Active",
