@@ -36,7 +36,10 @@ struct AestheticInput: View {
                 .disableAutocorrection(true)
 
                 if showToggle {
-                    Button(action: { isPasswordVisible.toggle() }) {
+                    Button(action: {
+                        HapticManager.shared.trigger(.selection)
+                        isPasswordVisible.toggle()
+                    }) {
                         Image(systemName: isPasswordVisible ? "eye" : "eye.slash")
                             .foregroundColor(AppConfig.Colors.textSecondary)
                     }

@@ -129,6 +129,7 @@ final class SOSViewModel: ObservableObject {
 
             isSubmitting = false
             lastSubmittedSeverity = severity
+            HapticManager.shared.trigger(.success)
             showSuccessPopup = true
             showFirstAidGuide = false
             selectedSeverity = nil
@@ -137,6 +138,7 @@ final class SOSViewModel: ObservableObject {
         } catch {
             isSubmitting = false
             submissionError = "Failed to report incident: \(error.localizedDescription)"
+            HapticManager.shared.trigger(.error)
         }
     }
 }

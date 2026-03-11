@@ -76,6 +76,7 @@ struct ActiveRescueView: View {
                             .clipShape(Circle())
                             .shadow(color: Color.mint.opacity(0.4), radius: 4, y: 2)
                             .onTapGesture {
+                                HapticManager.shared.trigger(.selection)
                                 selectedVetPlace = place
                                 showVetOptions = true
                             }
@@ -174,6 +175,7 @@ struct ActiveRescueView: View {
                 }
                 .contentShape(Rectangle())
                 .onTapGesture {
+                    HapticManager.shared.trigger(.selection)
                     showDetailSheet = true
                 }
             }
@@ -279,6 +281,7 @@ struct ActiveRescueView: View {
                             HStack(spacing: 8) {
                                 ForEach(ActiveRescueViewModel.RescueStage.allCases) { stage in
                                     Button {
+                                        HapticManager.shared.trigger(.selection)
                                         Task {
                                             await viewModel.postConditionUpdate(stage: stage, note: stageNote)
                                             stageNote = ""
@@ -345,9 +348,16 @@ struct ActiveRescueView: View {
                                 .foregroundColor(AppConfig.Colors.textSecondary)
 
                             Menu {
-                                Button("Vet Hospital") { viewModel.selectedDropOffType = "vet_hospital" }
-                                Button("NGO Shelter") { viewModel.selectedDropOffType = "ngo_shelter" }
+                                Button("Vet Hospital") {
+                                    HapticManager.shared.trigger(.selection)
+                                    viewModel.selectedDropOffType = "vet_hospital"
+                                }
+                                Button("NGO Shelter") {
+                                    HapticManager.shared.trigger(.selection)
+                                    viewModel.selectedDropOffType = "ngo_shelter"
+                                }
                                 Button("Treated On Scene") {
+                                    HapticManager.shared.trigger(.selection)
                                     viewModel.selectedDropOffType = "treated_on_scene"
                                 }
                             } label: {
@@ -385,6 +395,7 @@ struct ActiveRescueView: View {
                                         .clipShape(RoundedRectangle(cornerRadius: 12))
 
                                     Button(action: {
+                                        HapticManager.shared.trigger(.light)
                                         viewModel.pickedImage = nil
                                         selectedItem = nil
                                     }) {
@@ -402,6 +413,9 @@ struct ActiveRescueView: View {
                                             .font(.title2)
                                         Text("Add Photo Proof")
                                             .font(AppConfig.Fonts.smallBold)
+                                            .onTapGesture {
+                                                HapticManager.shared.trigger(.selection)
+                                            }
                                     }
                                     .foregroundColor(AppConfig.Colors.accent)
                                     .frame(height: 120)
@@ -451,6 +465,7 @@ struct ActiveRescueView: View {
                     // Action Buttons
                     VStack(spacing: 12) {
                         Button(action: {
+                            HapticManager.shared.trigger(.selection)
                             openMapsNavigation(to: rescue.coordinate, name: rescue.title)
                         }) {
                             HStack {
@@ -461,6 +476,7 @@ struct ActiveRescueView: View {
                         }
 
                         Button(action: {
+                            HapticManager.shared.trigger(.medium)
                             if viewModel.pickedImage == nil {
                                 showProofError = true
                             } else {

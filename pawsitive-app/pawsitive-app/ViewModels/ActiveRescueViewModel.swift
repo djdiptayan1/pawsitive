@@ -298,6 +298,7 @@ class ActiveRescueViewModel: NSObject, ObservableObject, CLLocationManagerDelega
         guard let image = pickedImage else {
             completeSuccess = false
             showCompleteAlert = true
+            HapticManager.shared.trigger(.error)
             isLoading = false
             return
         }
@@ -307,6 +308,7 @@ class ActiveRescueViewModel: NSObject, ObservableObject, CLLocationManagerDelega
         guard let finalPhotoUrl else {
             completeSuccess = false
             showCompleteAlert = true
+            HapticManager.shared.trigger(.error)
             isLoading = false
             return
         }
@@ -323,11 +325,13 @@ class ActiveRescueViewModel: NSObject, ObservableObject, CLLocationManagerDelega
                     dropOffType: selectedDropOffType
                 )
             )
+            HapticManager.shared.trigger(.success)
             completeSuccess = true
             activeRescue = nil
             route = nil
             pickedImage = nil
         } catch {
+            HapticManager.shared.trigger(.error)
             completeSuccess = false
             print("Complete rescue error: \(error)")
         }
@@ -395,11 +399,13 @@ class ActiveRescueViewModel: NSObject, ObservableObject, CLLocationManagerDelega
             )
 
             await fetchConditionTimeline(incidentId: rescueId)
+            HapticManager.shared.trigger(.success)
             LocalNotificationService.shared.fire(
                 title: "Condition updated",
                 body: "\(stage.icon) \(stage.title) has been shared with the citizen."
             )
         } catch {
+            HapticManager.shared.trigger(.error)
             print("Failed to post condition update: \(error)")
         }
     }

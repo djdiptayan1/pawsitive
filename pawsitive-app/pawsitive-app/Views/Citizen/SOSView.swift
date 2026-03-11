@@ -155,7 +155,10 @@ struct HeaderView: View {
 
             Spacer()
 
-            Button(action: onProfileTap) {
+            Button(action: {
+                HapticManager.shared.trigger(.selection)
+                onProfileTap()
+            }) {
                 Image(systemName: "person.crop.circle.fill")
                     .resizable()
                     .scaledToFill()
@@ -237,7 +240,10 @@ struct SOSButtonView: View {
                 .fill(AppConfig.Colors.background)
                 .frame(width: 156, height: 156)
 
-            Button(action: action) {
+            Button(action: {
+                HapticManager.shared.trigger(.heavy)
+                action()
+            }) {
                 ZStack {
                     Circle()
                         .fill(
@@ -327,7 +333,10 @@ struct UrgencyCard: View {
     let action: () -> Void
 
     var body: some View {
-        Button(action: action) {
+        Button(action: {
+            HapticManager.shared.trigger(.selection)
+            action()
+        }) {
             VStack(spacing: 10) {
                 ZStack {
                     Circle()
